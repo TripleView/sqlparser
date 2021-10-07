@@ -25,3 +25,17 @@ C:\Users\HeZP\Desktop\code\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.pdb
 C:\Users\HeZP\Desktop\code\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.genruntimeconfig.cache
 C:\Users\HeZP\Desktop\code\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.csproj.AssemblyReference.cache
 C:\Users\HeZP\Desktop\code\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.GeneratedMSBuildEditorConfig.editorconfig
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.exe
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.deps.json
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.runtimeconfig.json
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.runtimeconfig.dev.json
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.dll
+D:\code\sqlparser\SqlParse\bin\Debug\netcoreapp3.1\SqlParse.pdb
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.csproj.AssemblyReference.cache
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.GeneratedMSBuildEditorConfig.editorconfig
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.AssemblyInfoInputs.cache
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.AssemblyInfo.cs
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.csproj.CoreCompileInputs.cache
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.dll
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.pdb
+D:\code\sqlparser\SqlParse\obj\Debug\netcoreapp3.1\SqlParse.genruntimeconfig.cache

@@ -9,8 +9,8 @@ namespace DatabaseParser.ExpressionParser
     /// </summary>
     public class SelectExpression : QueryExpression
     {
-        public SelectExpression(Type type, string alias, List<ColumnExpression> columns, Expression from, Expression where = null,
-            IEnumerable<ColumnExpression> groupBy = null, IEnumerable<Expression> orderBy = null, object translator = null)
+        public SelectExpression(Type type, string alias, List<ColumnExpression> columns, Expression from, WhereExpression where = null,
+            List<GroupByExpression> groupBy = null, List<OrderByExpression> orderBy = null, object translator = null)
             : base((ExpressionType)DbExpressionType.Select, type)
         {
             ElementType = type;
@@ -18,10 +18,9 @@ namespace DatabaseParser.ExpressionParser
             Columns = columns;
             From = from;
             Where = where;
-            GroupBy = groupBy;
-            OrderBy = orderBy;
+            GroupBy = groupBy ?? new List<GroupByExpression>();
+            OrderBy = orderBy ?? new List<OrderByExpression>();
             Translator = translator;
-         
         }
 
         #region 属性
@@ -29,20 +28,20 @@ namespace DatabaseParser.ExpressionParser
         /// <summary>
         /// Where条件
         /// </summary>
-        public Expression Where { get; set; }
+        public WhereExpression Where { get; set; }
 
         /// <summary>
         /// GroupBy
         /// </summary>
-        public IEnumerable<ColumnExpression> GroupBy { get; set; }
+        public List<GroupByExpression> GroupBy { get; set; }
 
         /// <summary>
         /// OrderBy
         /// </summary>
-        public IEnumerable<Expression> OrderBy { get; set; }
+        public List<OrderByExpression> OrderBy { get; set; }
 
         #endregion
 
-       
+
     }
 }

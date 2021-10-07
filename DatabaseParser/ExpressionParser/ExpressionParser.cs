@@ -140,7 +140,7 @@ namespace DatabaseParser.ExpressionParser
                             afterConventionMethodName = "UPPER";
                             break;
                         case "ToLower":
-                            afterConventionMethodName = "LOWER";
+                            afterConventionMethodName = "*";
                             break;
                     }
 

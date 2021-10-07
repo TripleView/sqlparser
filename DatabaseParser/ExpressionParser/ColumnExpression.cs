@@ -28,6 +28,8 @@ namespace DatabaseParser.ExpressionParser
         }
         public override ExpressionType NodeType { get; }
         public override Type Type { get; }
+
+        public string NodeTypeName => ((DbExpressionType)NodeType).ToString();
         /// <summary>
         /// 元信息
         /// </summary>

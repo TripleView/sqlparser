@@ -1,11 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "SXSRNPFYTF4rCJN7taJp2H58nLDacex5KePoNuIB269XOib5PM+z7vDxgY39IeLby95GIMqPWC1N85wVuZhpIw==",
+  "dgSpecHash": "XY6IlNyyOvhGWhUap3Yj1iPnXzC03J+CbRovqmtxYy396rzuDC+dA+6fYfUNq0IUNqR6FWlTvX1SgpHlT32zcg==",
   "success": true,
-  "projectFilePath": "E:\\远程连接\\SqlParse\\SqlParse.csproj",
-  "expectedPackageFiles": [
-    "E:\\nugetCache\\microsoft.windowsdesktop.app.ref\\3.1.0\\microsoft.windowsdesktop.app.ref.3.1.0.nupkg.sha512",
-    "E:\\nugetCache\\microsoft.netcore.app.ref\\3.1.0\\microsoft.netcore.app.ref.3.1.0.nupkg.sha512"
-  ],
+  "projectFilePath": "D:\\code\\sqlparser\\SqlParse\\SqlParse.csproj",
+  "expectedPackageFiles": [],
   "logs": []
 }

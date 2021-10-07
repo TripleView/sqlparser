@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Text;
+using DatabaseParser.Base;
 using DatabaseParser.Util;
 
 namespace DatabaseParser.ExpressionParser
@@ -9,10 +10,22 @@ namespace DatabaseParser.ExpressionParser
     public class QueryFormatter : DbExpressionVisitor
     {
 
+        public QueryFormatter(string parameterPrefix,string leftQuote,string rightQuote)
+        {
+            this.parameterPrefix = parameterPrefix;
+            this.leftQuote = leftQuote;
+            this.rightQuote = rightQuote;
+        }
+
         private readonly StringBuilder _sb = new StringBuilder();
+
         private readonly List<SqlParameter> sqlParameters = new List<SqlParameter>();
+
         private int parameterIndex = 0;
-        private string parameterPrefix = "@";
+        private string parameterPrefix;
+        private string leftQuote;
+        private string rightQuote;
+
         public override Expression VisitTable(TableExpression table)
         {
             _sb.Append("SELECT ");
@@ -23,25 +36,43 @@ namespace DatabaseParser.ExpressionParser
                 if (index++ > 0) _sb.Append(", ");
                 this.VisitColumn(column);
             }
-            _sb.AppendFormat(" FROM [{0}]", table.Name);
+            _sb.AppendFormat(" FROM {0}", BoxTableNameOrColumnName(table.Name));
             if (!table.Alias.IsNullOrWhiteSpace())
-                _sb.AppendFormat(" As [{0}] ", table.Alias);
+                _sb.AppendFormat(" As {0} ", BoxTableNameOrColumnName(table.Alias));
 
             return table;
         }
+        /// <summary>
+        /// 包装表名或者列名
+        /// </summary>
+        /// <param name="tableNameOrColumnName"></param>
+        /// <returns></returns>
 
+        private string BoxTableNameOrColumnName(string tableNameOrColumnName) =>
+            leftQuote + tableNameOrColumnName + rightQuote;
+
+        /// <summary>
+        /// 获取函数别名，比如sqlserver就是LEN，mysql就是LENGTH
+        /// </summary>
+        /// <param name="functionName"></param>
+        /// <returns></returns>
+        protected virtual string GetFunctionAlias(string functionName)
+        {
+            return functionName;
+        }
 
         public void Format(Expression expression)
         {
             _sb.Clear();
-            if (expression is QueryExpression queryExpression)
+            if (expression is SelectExpression selectExpression)
             {
-                this.VisitQuery(queryExpression);
+                var result = this.VisitSelect(selectExpression);
             }
-            else if (expression is WhereExpression whereExpression)
+            else
             {
-                this.VisitWhere(whereExpression);
+                throw new NotSupportedException(nameof(expression));
             }
+            
 
         }
 
@@ -120,23 +151,23 @@ namespace DatabaseParser.ExpressionParser
             if (value != null)
             {
 
-                tempStringBuilder.AppendFormat("{0} As [{1}]", BoxParameter(value, true), columnExpression.ColumnName);
+                tempStringBuilder.AppendFormat("{0} As {1}", BoxParameter(value, true), BoxTableNameOrColumnName(columnExpression.ColumnName));
             }
             else
             {
                 if (!columnExpression.TableAlias.IsNullOrWhiteSpace())
                 {
-                    tempStringBuilder.AppendFormat("[{0}].[{1}]", columnExpression.TableAlias, columnExpression.ColumnName);
+                    tempStringBuilder.AppendFormat("{0}.{1}", BoxTableNameOrColumnName(columnExpression.TableAlias), BoxTableNameOrColumnName(columnExpression.ColumnName));
                 }
                 else
                 {
-                    tempStringBuilder.AppendFormat("[{0}]", columnExpression.ColumnName);
+                    tempStringBuilder.AppendFormat("{0}", BoxTableNameOrColumnName(columnExpression.ColumnName));
                 }
             }
 
             if (!columnExpression.FunctionName.IsNullOrWhiteSpace())
             {
-                tempStringBuilder.Insert(0, columnExpression.FunctionName + "(");
+                tempStringBuilder.Insert(0, this.GetFunctionAlias(columnExpression.FunctionName) + "(");
                 tempStringBuilder.Insert(tempStringBuilder.Length, ")");
             }
 
@@ -160,52 +191,97 @@ namespace DatabaseParser.ExpressionParser
             if (select.From != null)
             {
                 _sb.Append(" FROM ");
-                _sb.Append("(");
-                this.Visit(select.From);
-                _sb.Append(")");
+                //_sb.Append("(");
+                if (select.From is TableExpression table)
+                {
+                    _sb.Append(BoxTableNameOrColumnName(table.Name));
+                    if (!table.Alias.IsNullOrWhiteSpace())
+                    {
+                        _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(table.Alias));
+                    }
+                }
+                
+                //_sb.Append(")");
+               
+                
+
             }
-            _sb.AppendFormat(" As {0} ", alias);
+            else
+            {
+                throw new ArgumentException("loss from");
+            }
+
+            if (select.Where != null)
+            {
+                _sb.Append(" WHERE ");
+                this.VisitWhere(select.Where);
+            }
+
+            if (select.GroupBy.IsNotNullAndNotEmpty())
+            {
+                _sb.Append(" GROUP BY ");
+                for (var i = 0; i < select.GroupBy.Count; i++)
+                {
+                    var groupBy = select.GroupBy[i];
+                    this.VisitColumn(groupBy.ColumnExpression);
+                    if (i < select.GroupBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
+
+            if (select.OrderBy.IsNotNullAndNotEmpty())
+            {
+                _sb.Append(" ORDER BY ");
+                for (var i = 0; i < select.OrderBy.Count; i++)
+                {
+                    var orderBy = select.OrderBy[i];
+                    this.VisitColumn(orderBy.ColumnExpression);
+                    _sb.Append(orderBy.OrderByType==OrderByType.Desc?" DESC":"");
+                    if (i < select.OrderBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
 
             return select;
         }
 
         public override Expression VisitWhere(WhereExpression whereExpression)
         {
-            if (whereExpression.From != null)
+           
+            int index = 0;
+            _sb.Append(" (");
+            if (whereExpression.Left != null && whereExpression.Right != null)
             {
-                this.Visit(whereExpression.From);
+                this.VisitWhere(whereExpression.Left);
+                _sb.Append(" ");
+                _sb.Append(whereExpression.Operator);
+                _sb.Append(" ");
+                this.VisitWhere(whereExpression.Right);
                 _sb.Append(" ");
             }
-
-            _sb.Append("WHERE ");
-            int index = 0;
-
-            var whereConditionExpression = whereExpression.WhereConditionExpressions;
-            if (whereConditionExpression != null)
+          
+            else if (whereExpression is WhereConditionExpression whereConditionExpression)
             {
                 this.VisitColumn(whereConditionExpression.ColumnExpression);
                 _sb.Append(" ");
-                _sb.Append(whereConditionExpression.ComparisonCondition);
+                _sb.Append(whereConditionExpression.Operator);
                 _sb.Append(" ");
                 _sb.Append(BoxParameter(whereConditionExpression.Value));
-                while (whereConditionExpression.NextWhereConditionExpression != null)
-                {
-                    _sb.Append(" ");
-                    _sb.Append(whereConditionExpression.ConnectorToTheNextObject);
-                    _sb.Append(" ");
-
-                    whereConditionExpression = whereConditionExpression.NextWhereConditionExpression;
-                    this.VisitColumn(whereConditionExpression.ColumnExpression);
-                    _sb.Append(" ");
-                    _sb.Append(whereConditionExpression.ComparisonCondition);
-                    _sb.Append(" ");
-                    _sb.Append(BoxParameter(whereConditionExpression.Value));
-                }
             }
-            else
+            else if (whereExpression is FunctionWhereConditionExpression functionWhereConditionExpression)
             {
-                throw new Exception("can not find where condition");
+                _sb.Append(GetFunctionAlias(functionWhereConditionExpression.Operator)+ " ");
+                _sb.Append(" (");
+                this.VisitWhere(functionWhereConditionExpression.WhereExpression);
+                _sb.Append(" )");
             }
+
+            _sb.Append(" )");
+          
 
             return whereExpression;
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -6,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DatabaseParser.Util;
 
 namespace DatabaseParser.ExpressionParser
@@ -14,6 +16,8 @@ namespace DatabaseParser.ExpressionParser
     {
         private Dictionary<string, ColumnExpression> _lastColumns =
             new Dictionary<string, ColumnExpression>();
+
+        private List<GroupByExpression> _lastGroupByExpressions = new List<GroupByExpression>();
 
         private static readonly IDictionary<ExpressionType, string> nodeTypeMappings = new Dictionary<ExpressionType, string>
         {
@@ -37,11 +41,16 @@ namespace DatabaseParser.ExpressionParser
             {ExpressionType.Subtract, "-"}
         };
 
+        private Stack<string> methodCallStack = new Stack<string>();
+        private List<string> lastMethodCalls = new List<string>();
         /// <summary>
         /// 当前处理的方法名称，比如select，where
         /// </summary>
-        private string MethodName;
-
+        private string MethodName => methodCallStack.Peek();
+        /// <summary>
+        /// 上一次处理的方法名称
+        /// </summary>
+        private string LastMethodName => lastMethodCalls.LastOrDefault();
         #region 表名生成管理
 
         private int _tableIndex = 0;
@@ -52,7 +61,7 @@ namespace DatabaseParser.ExpressionParser
         public string NewAlias => "p" + _tableIndex;
 
         #endregion
-        [DebuggerStepThrough]
+
         public override Expression Visit(Expression exp)
         {
             if (exp == null) return null;
@@ -95,20 +104,336 @@ namespace DatabaseParser.ExpressionParser
         {
             return selectExpression;
         }
+
+        private string BoxMethodLikeParameter(object parameter, string methodName)
+        {
+            switch (methodName)
+            {
+                case "Contains":
+                    return $"%{parameter}%";
+                    break;
+                case "StartsWith":
+                    return $"{parameter}%";
+                    break;
+                case "EndsWith":
+                    return $"%{parameter}";
+                    break;
+            }
+
+            throw new NotSupportedException(methodName);
+        }
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
             var method = node.Method;
-            MethodName = method.Name;
+            var methodName = node.Method.Name;
 
             switch (method.Name)
             {
                 case nameof(Queryable.Select):
-                    return this.VisitSelectCall(node);
+                    methodCallStack.Push(methodName);
+                    //MethodName = method.Name;
+                    var result = this.VisitSelectCall(node);
+                    var lastMethodCallName = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName);
+                    return result;
+
                 case nameof(Queryable.Where):
-                    return this.VisitWhereCall(node);
+                    methodCallStack.Push(methodName);
+                    //MethodName = method.Name;
+                    var result2 = this.VisitWhereCall(node);
+                    var lastMethodCallName2 = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName2);
+                    return result2;
+                case nameof(Queryable.GroupBy):
+                    methodCallStack.Push(methodName);
+                    //MethodName = method.Name;
+                    var result3 = this.VisitGroupByCall(node);
+                    var lastMethodCallName3 = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName3);
+                    return result3;
+                case nameof(Queryable.OrderBy):
+                case nameof(Queryable.OrderByDescending):
+                case nameof(Queryable.ThenBy):
+                case nameof(Queryable.ThenByDescending):
+                    //MethodName = method.Name;
+                    methodCallStack.Push(methodName);
+                    var result4 = this.VisitOrderByCall(node);
+                    var lastMethodCallName4 = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName4);
+                    return result4;
+            }
+
+            //针对groupBy进行单独处理
+            if (LastMethodName == nameof(Queryable.GroupBy))
+            {
+                var functionName = methodName.ToUpper();
+                switch (methodName)
+                {
+                    case nameof(Queryable.Count):
+                        var result = new ColumnExpression(null, "", null, 0);
+                        result.FunctionName = functionName;
+                        return result;
+                    case nameof(Queryable.Sum):
+                        var lambda = (LambdaExpression)this.StripQuotes(node.Arguments[1]);
+                        var value = this.Visit(lambda.Body);
+                        if (value is ColumnExpression columnExpression)
+                        {
+                            columnExpression.FunctionName = functionName;
+                            return columnExpression;
+                        }
+                        else
+                        {
+                            throw new NotSupportedException(methodName);
+                        }
+                }
+            }
+
+
+
+            var containsMethod = typeof(string).GetMethod("Contains", new Type[] { typeof(string) });
+            var startsWithMethod = typeof(string).GetMethod("StartsWith", new Type[] { typeof(string) });
+            var endsWithMethod = typeof(string).GetMethod("EndsWith", new Type[] { typeof(string) });
+
+            var stringMethodLikeInfoList = new List<MethodInfo>
+            {
+                containsMethod,
+                startsWithMethod,
+                endsWithMethod
+            };
+
+            var trimMethod = typeof(string).GetMethod("Trim", new Type[] { });
+            var trimLeftMethod = typeof(string).GetMethod("TrimStart", new Type[] { });
+            var trimRightMethod = typeof(string).GetMethod("TrimEnd", new Type[] { });
+            var toUpperMethod = typeof(string).GetMethod("ToUpper", new Type[] { });
+            var toLowerMethod = typeof(string).GetMethod("ToLower", new Type[] { });
+
+            var stringMethodTrimUpperLowerInfoList = new List<MethodInfo>
+            {
+                trimMethod,
+                trimLeftMethod,
+                trimRightMethod,
+                toUpperMethod,
+                toLowerMethod
+            };
+
+            if (method.DeclaringType == null)
+            {
+                throw new NotSupportedException(methodName);
+            }
+
+            //处理string
+            if (method.DeclaringType == typeof(string))
+            {
+                if (stringMethodLikeInfoList.Contains(node.Method))
+                {
+                    var objectExpression = this.Visit(node.Object);
+                    if (objectExpression is ColumnExpression columnExpression && node.Arguments.Count > 0)
+                    {
+                        if (node.Arguments[0] is ConstantExpression constantExpression)
+                        {
+                            var whereConditionExpression = new WhereConditionExpression(columnExpression, "like", BoxMethodLikeParameter(constantExpression.Value, methodName));
+                            return whereConditionExpression;
+                        }
+                        else if (node.Arguments[0] is MemberExpression memberExpression)
+                        {
+                            var memberResultExpression = this.Visit(memberExpression);
+                            if (memberResultExpression is ConstantExpression constantExpression2)
+                            {
+                                var whereConditionExpression2 = new WhereConditionExpression(columnExpression, "like", BoxMethodLikeParameter(constantExpression2.Value, methodName));
+                                return whereConditionExpression2;
+                            }
+                            else
+                            {
+                                throw new NotSupportedException(methodName);
+                            }
+                        }
+                        else
+                        {
+                            throw new NotSupportedException(methodName);
+                        }
+
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(methodName);
+                    }
+
+                }
+                else if (stringMethodTrimUpperLowerInfoList.Contains(node.Method))
+                {
+                    var objectExpression = this.Visit(node.Object);
+                    if (objectExpression is ColumnExpression columnExpression)
+                    {
+                        if (node.Method == trimMethod)
+                        {
+                            columnExpression.FunctionName = "TRIM";
+                        }
+                        else if (node.Method == trimLeftMethod)
+                        {
+                            columnExpression.FunctionName = "LTRIM";
+                        }
+                        else if (node.Method == trimRightMethod)
+                        {
+                            columnExpression.FunctionName = "RTRIM";
+                        }
+                        else if (node.Method == toUpperMethod)
+                        {
+                            columnExpression.FunctionName = "UPPER";
+                        }
+                        else if (node.Method == toLowerMethod)
+                        {
+                            columnExpression.FunctionName = "LOWER";
+                        }
+                        return columnExpression;
+
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(methodName);
+                    }
+
+                }
+                else if (methodName == "Equals" && node.Arguments.Count == 1)
+                {
+                    var objectExpression = this.Visit(node.Object);
+                    if (objectExpression is ColumnExpression columnExpression)
+                    {
+                        if (node.Arguments[0] is ConstantExpression constantExpression)
+                        {
+                            var whereConditionExpression = new WhereConditionExpression(columnExpression, "=", constantExpression.Value);
+                            return whereConditionExpression;
+                        }
+                        else if (node.Arguments[0] is MemberExpression memberExpression)
+                        {
+                            var memberResultExpression = this.Visit(memberExpression);
+                            if (memberResultExpression is ConstantExpression constantExpression2)
+                            {
+                                var whereConditionExpression2 = new WhereConditionExpression(columnExpression, "=", constantExpression2.Value);
+                                return whereConditionExpression2;
+                            }
+                            else
+                            {
+                                throw new NotSupportedException(methodName);
+                            }
+                        }
+                        else
+                        {
+                            throw new NotSupportedException(methodName);
+                        }
+
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(methodName);
+                    }
+                }
+                else
+                {
+                    throw new NotSupportedException(methodName);
+                }
+            }
+            else
+            {
+                //collection
+                var isIEnumerable = method.DeclaringType.GetInterfaces().Contains(typeof(IEnumerable)) &&
+                                    node.Arguments.Count == 1;
+                var isArray = method.DeclaringType == typeof(Enumerable) &&
+                              method.GetCustomAttribute<ExtensionAttribute>() != null && node.Arguments.Count == 2;
+
+                if (isIEnumerable || isArray)
+                {
+                    Expression collection;
+                    Expression property;
+                    if (isIEnumerable)
+                    {
+                        collection = node.Object;
+                        property = node.Arguments[0];
+                    }
+                    else
+                    {
+                        collection = node.Arguments[0];
+                        property = node.Arguments[1];
+
+                    }
+
+                    var values = (IEnumerable)GetValue(collection);
+                    var propertyExpression = this.Visit(property);
+                    if (propertyExpression is ColumnExpression columnExpression)
+                    {
+                        var count = 0;
+                        foreach (var value in values)
+                        {
+                            count++;
+                        }
+                        //判断是否需要每500次进行拆分
+                        if (count > 500)
+                        {
+                            var tempResult = new List<object>();
+                            var conditionExpressions = new List<WhereConditionExpression>();
+                            var i = 1;
+
+                            foreach (var value in values)
+                            {
+                                tempResult.Add(value);
+                                if ((i != 1 && i % 500 == 0) || i == count)
+                                {
+                                    var newValue = new List<object>(tempResult);
+
+                                    var whereConditionExpression2 = new WhereConditionExpression(columnExpression, "in", newValue);
+                                    conditionExpressions.Add(whereConditionExpression2);
+                                    tempResult.Clear();
+                                }
+
+                                i++;
+                            }
+
+                            var result = FoldWhereExpression(conditionExpressions);
+                            return result;
+                        }
+                        else
+                        {
+                            var whereConditionExpression2 = new WhereConditionExpression(columnExpression, "in", values);
+                            return whereConditionExpression2;
+                        }
+
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(methodName);
+                    }
+
+                }
+                else
+                {
+                    throw new NotSupportedException(methodName);
+                }
             }
 
             return node;
+        }
+
+        protected WhereExpression FoldWhereExpression(List<WhereConditionExpression> whereConditionExpressions)
+        {
+            WhereExpression result = null;
+            for (var i = 0; i < whereConditionExpressions.Count; i++)
+            {
+                var whereConditionExpression = whereConditionExpressions[i];
+                if (i == 0)
+                {
+                    result = whereConditionExpression;
+                }
+                else
+                {
+                    WhereExpression tempResult = new WhereExpression("or")
+                    {
+                        Left = result,
+                        Right = whereConditionExpression
+                    };
+                    result = tempResult;
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -133,73 +458,59 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (MethodName == nameof(Queryable.Where))
             {
-                //多个binary连接，每次都只处理最右边。
-                var rightExpression = this.Visit(binaryExpression.Right);
-                var comparisonCondition = nodeTypeMappings[binaryExpression.NodeType];
-
-                if (string.IsNullOrWhiteSpace(comparisonCondition))
+                var @operator = nodeTypeMappings[binaryExpression.NodeType];
+                if (string.IsNullOrWhiteSpace(@operator))
                 {
                     throw new NotSupportedException(nameof(binaryExpression.NodeType));
                 }
+                var result = new WhereExpression(@operator);
+                var rightExpression = this.Visit(binaryExpression.Right);
+
 
                 var leftExpression = this.Visit(binaryExpression.Left);
 
-                if (rightExpression is WhereConditionExpression rightWhereConditionExpression)
+                if (leftExpression is ColumnExpression leftColumnExpression && rightExpression is ConstantExpression rightConstantExpression)
                 {
-                    if (leftExpression is WhereConditionExpression leftExpressionExpression)
-                    {
-                        rightWhereConditionExpression.NextWhereConditionExpression = leftExpressionExpression;
-                        rightWhereConditionExpression.ConnectorToTheNextObject = comparisonCondition;
-                        return rightWhereConditionExpression;
-                    }
-                    //兼容it.isHandsome这种单true的条件
-                    else if (leftExpression is ColumnExpression columnExpression && columnExpression.Type == typeof(bool))
-                    {
-                        var leftWhereConditionExpression = new WhereConditionExpression(columnExpression, "=", 1);
-                        rightWhereConditionExpression.NextWhereConditionExpression = leftWhereConditionExpression;
-                        rightWhereConditionExpression.ConnectorToTheNextObject = comparisonCondition;
-
-                        return rightWhereConditionExpression;
-                    }
-                    else
-                    {
-                        throw new NotSupportedException("binary left process failure");
-                    }
-                }
-                if (rightExpression is ColumnExpression tempRightColumnExpression)
-                {
-                    var tempRightWhereConditionExpression = new WhereConditionExpression(tempRightColumnExpression, "=", 1);
-
-                    if (leftExpression is WhereConditionExpression leftExpressionExpression)
-                    {
-                        tempRightWhereConditionExpression.NextWhereConditionExpression = leftExpressionExpression;
-                        tempRightWhereConditionExpression.ConnectorToTheNextObject = comparisonCondition;
-                        return tempRightWhereConditionExpression;
-                    }
-                    //兼容it.isHandsome这种单true的条件
-                    else if (leftExpression is ColumnExpression columnExpression && columnExpression.Type == typeof(bool))
-                    {
-                        var leftWhereConditionExpression = new WhereConditionExpression(columnExpression, "=", 1);
-                        tempRightWhereConditionExpression.NextWhereConditionExpression = leftWhereConditionExpression;
-                        tempRightWhereConditionExpression.ConnectorToTheNextObject = comparisonCondition;
-
-                        return tempRightWhereConditionExpression;
-                    }
-                    else
-                    {
-                        throw new NotSupportedException("binary left process failure");
-                    }
-                }
-                else if (leftExpression is ColumnExpression leftColumnExpression && rightExpression is ConstantExpression rightConstantExpression)
-                {
-                    return new WhereConditionExpression(leftColumnExpression, comparisonCondition,
+                    return new WhereConditionExpression(leftColumnExpression, @operator,
                         rightConstantExpression.Value);
                 }
                 else if (rightExpression is ColumnExpression rightColumnExpression && leftExpression is ConstantExpression leftConstantExpression)
                 {
-                    return new WhereConditionExpression(rightColumnExpression, comparisonCondition,
+                    return new WhereConditionExpression(rightColumnExpression, @operator,
                         leftConstantExpression.Value);
                 }
+                else if (leftExpression is ColumnExpression leftColumnExpression2 && leftColumnExpression2.Type == typeof(bool) && rightExpression is WhereExpression rightWhereExpression2)
+                {
+                    var left = new WhereConditionExpression(leftColumnExpression2, "=", 1);
+                    result.Left = left;
+                    result.Right = rightWhereExpression2;
+                }
+                else if (rightExpression is ColumnExpression rightColumnExpression2 && rightExpression.Type == typeof(bool) && leftExpression is WhereExpression leftWhereExpression2)
+                {
+                    var right = new WhereConditionExpression(rightColumnExpression2, "=", 1);
+                    result.Left = leftWhereExpression2;
+                    result.Right = right;
+                }
+                else if (rightExpression is ColumnExpression rightColumnExpression3 && rightExpression.Type == typeof(bool) && leftExpression is ColumnExpression leftColumnExpression3 && leftColumnExpression3.Type == typeof(bool))
+                {
+                    var right = new WhereConditionExpression(rightColumnExpression3, "=", 1);
+                    var left = new WhereConditionExpression(leftColumnExpression3, "=", 1);
+                    result.Left = left;
+                    result.Right = right;
+                }
+                else if (leftExpression is WhereExpression leftWhereExpression &&
+                   rightExpression is WhereExpression rightWhereExpression)
+                {
+                    result.Left = leftWhereExpression;
+                    result.Right = rightWhereExpression;
+
+                }
+                else
+                {
+                    throw new NotSupportedException(MethodName);
+                }
+                return result;
+
             }
             //throw new NotSupportedException(MethodName);
             return base.VisitBinary(binaryExpression);
@@ -207,99 +518,198 @@ namespace DatabaseParser.ExpressionParser
 
         public virtual Expression VisitWhereCall(MethodCallExpression whereCall)
         {
-            var result = new WhereExpression();
+            if (MethodName == nameof(Queryable.GroupBy))
+            {
+                return whereCall;
+            }
+            else
+            {
+                var source = (TableExpression)this.Visit(whereCall.Arguments[0]);
+                var lambda = (LambdaExpression)this.StripQuotes(whereCall.Arguments[1]);
+                var bodyExpression = this.Visit(lambda.Body);
 
-            var source = (QueryExpression)this.Visit(whereCall.Arguments[0]);
+
+                //兼容it.isHandsome这种单true的条件
+                if (bodyExpression is ColumnExpression columnExpression && columnExpression.Type == typeof(bool))
+                {
+                    var whereConditionExpression = new WhereConditionExpression(columnExpression, "=", 1);
+                    var result = new SelectExpression(null, "", source.Columns, source, whereConditionExpression);
+                    return result;
+                }
+                else if (bodyExpression is WhereExpression whereExpression)
+                {
+                    var result = new SelectExpression(null, "", source.Columns, source, whereExpression);
+                    return result;
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(bodyExpression));
+                }
+
+                return whereCall;
+            }
+
+        }
+
+
+        public virtual Expression VisitOrderByCall(MethodCallExpression whereCall)
+        {
+            var sourceExpression = this.Visit(whereCall.Arguments[0]);
             var lambda = (LambdaExpression)this.StripQuotes(whereCall.Arguments[1]);
             var bodyExpression = this.Visit(lambda.Body);
 
-            //兼容it.isHandsome这种单true的条件
-            if (bodyExpression is ColumnExpression columnExpression && columnExpression.Type == typeof(bool))
+            if (sourceExpression is TableExpression table)
             {
-                var whereConditionExpression = new WhereConditionExpression(columnExpression, "=", 1);
-                result.WhereConditionExpressions = whereConditionExpression;
+                if (bodyExpression is ColumnExpression columnExpression)
+                {
+                    OrderByType orderByType;
+                    switch (whereCall.Method.Name)
+                    {
+                        case nameof(Queryable.ThenBy):
+                        case nameof(Queryable.OrderBy):
+                            orderByType = OrderByType.Asc;
+                            break;
+                        case nameof(Queryable.OrderByDescending):
+                        case nameof(Queryable.ThenByDescending):
+                            orderByType = OrderByType.Desc;
+                            break;
+                        default:
+                            orderByType = OrderByType.Asc;
+                            break;
+                    }
+                    var orderByExpression = new OrderByExpression(orderByType, columnExpression);
+                    var result = new SelectExpression(null, "", table.Columns, table, orderBy: new List<OrderByExpression>() { orderByExpression });
+                    return result;
+                }
             }
-            else if (bodyExpression is WhereConditionExpression whereConditionExpression)
+            else if (sourceExpression is SelectExpression selectExpression)
             {
-                result.WhereConditionExpressions = whereConditionExpression;
+                if (bodyExpression is ColumnExpression columnExpression)
+                {
+                    OrderByType orderByType;
+                    switch (whereCall.Method.Name)
+                    {
+                        case nameof(Queryable.ThenBy):
+                        case nameof(Queryable.OrderBy):
+                            orderByType = OrderByType.Asc;
+                            break;
+                        case nameof(Queryable.OrderByDescending):
+                        case nameof(Queryable.ThenByDescending):
+                            orderByType = OrderByType.Desc;
+                            break;
+                        default:
+                            orderByType = OrderByType.Asc;
+                            break;
+                    }
+                    var orderByExpression = new OrderByExpression(orderByType, columnExpression);
+                    if (selectExpression.OrderBy.IsNotNullAndNotEmpty())
+                    {
+                        selectExpression.OrderBy.Add(orderByExpression);
+                    }
+
+                    return selectExpression;
+                }
             }
             else
             {
                 throw new NotSupportedException(nameof(bodyExpression));
             }
-            //将结果集做一下倒叙；
-            var whereList = new List<WhereConditionExpression>();
-            var lastWhereConditionExpression = result.WhereConditionExpressions;
-            whereList.Add(lastWhereConditionExpression);
 
-            while (lastWhereConditionExpression.NextWhereConditionExpression != null)
-            {
-                var tempWhereConditionExpression = lastWhereConditionExpression.NextWhereConditionExpression;
-                whereList.Add(tempWhereConditionExpression);
-                lastWhereConditionExpression = lastWhereConditionExpression.NextWhereConditionExpression;
-            }
-
-            whereList.Reverse();
-            result.WhereConditionExpressions = null;
-            for (int i = 0; i < whereList.Count; i++)
-            {
-                var whereConditionExpression = whereList[i];
-                whereConditionExpression.NextWhereConditionExpression = null;
-                if (i + 1 <= whereList.Count - 1)
-                {
-                    whereConditionExpression.ConnectorToTheNextObject = whereList[i + 1].ConnectorToTheNextObject;
-                }
-                else
-                {
-                    whereConditionExpression.ConnectorToTheNextObject = "";
-                }
-
-                if (i == 0)
-                {
-                    result.WhereConditionExpressions = whereConditionExpression;
-                }
-                else
-                {
-                    var tempWhereConditionExpression = result.WhereConditionExpressions;
-                    if (tempWhereConditionExpression == null)
-                    {
-                        throw new Exception("reverse failure");
-                    }
-                    while (tempWhereConditionExpression.NextWhereConditionExpression != null)
-                    {
-                        tempWhereConditionExpression = tempWhereConditionExpression.NextWhereConditionExpression;
-                    }
-
-                    tempWhereConditionExpression.NextWhereConditionExpression = whereConditionExpression;
-                }
-            }
-
-            result.From = source;
-
-            return result;
+            return whereCall;
         }
         public virtual Expression VisitSelectCall(MethodCallExpression selectCall)
         {
-            var source = (QueryExpression)this.Visit(selectCall.Arguments[0]);
+            var sourceExpression = this.Visit(selectCall.Arguments[0]);
             var lambda = (LambdaExpression)this.StripQuotes(selectCall.Arguments[1]);
             var bodyExpression = this.Visit(lambda.Body);
-            if (bodyExpression != null)
+            if (sourceExpression is TableExpression table)
             {
-                switch (bodyExpression)
+                if (bodyExpression is ColumnExpression columnExpression)
                 {
-                    case SelectExpression selectExpression:
-                        selectExpression.From = source;
-                        return selectExpression;
-                        break;
-                    case MemberExpression memberExpression:
+                    var alias = table.Alias;
+                    var result = new SelectExpression(null, alias, new List<ColumnExpression>() { columnExpression }, table);
 
-                        break;
+                    return result;
                 }
+                else if (bodyExpression is ColumnsExpression columnsExpression)
+                {
+                    var alias = table.Alias;
+                    var result = new SelectExpression(null, alias, columnsExpression.ColumnExpressions, table);
 
+                    return result;
+                }
+            }
+            else if (sourceExpression is SelectExpression selectExpression)
+            {
+                if (bodyExpression is ColumnsExpression columnsExpression)
+                {
+                    selectExpression.Columns = columnsExpression.ColumnExpressions;
+
+                    return selectExpression;
+                }
             }
 
-
             return selectCall;
+        }
+
+        public virtual Expression VisitGroupByCall(MethodCallExpression groupByCall)
+        {
+            var sourceExpression = this.Visit(groupByCall.Arguments[0]);
+            var lambda = (LambdaExpression)this.StripQuotes(groupByCall.Arguments[1]);
+            var bodyExpression = this.Visit(lambda.Body);
+            if (sourceExpression is TableExpression table)
+            {
+                if (bodyExpression is ColumnExpression columnExpression)
+                {
+                    var groupByExpression = new GroupByExpression(columnExpression);
+                    _lastGroupByExpressions = new List<GroupByExpression>() { groupByExpression };
+                    var result = new SelectExpression(null, "", table.Columns, table, groupBy: new List<GroupByExpression>() { groupByExpression });
+                    return result;
+                }
+                else if (bodyExpression is GroupBysExpression groupBysExpression)
+                {
+                    _lastGroupByExpressions = groupBysExpression.GroupByExpressions;
+                    var result = new SelectExpression(null, "", table.Columns, table, groupBy: groupBysExpression.GroupByExpressions);
+                    return result;
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(bodyExpression));
+                }
+            }
+            else if (sourceExpression is SelectExpression selectExpression)
+            {
+                if (bodyExpression is ColumnExpression columnExpression)
+                {
+                    var groupByExpression = new GroupByExpression(columnExpression);
+                    _lastGroupByExpressions = new List<GroupByExpression>() { groupByExpression };
+                    if (selectExpression.GroupBy.IsNotNullAndNotEmpty())
+                    {
+                        selectExpression.GroupBy.Add(groupByExpression);
+                    }
+
+                    return selectExpression;
+                }
+                else if (bodyExpression is GroupBysExpression groupBysExpression)
+                {
+                    if (selectExpression.GroupBy.IsNotNullAndNotEmpty())
+                    {
+                        selectExpression.GroupBy.AddRange(groupBysExpression.GroupByExpressions);
+                    }
+                    _lastGroupByExpressions = groupBysExpression.GroupByExpressions;
+                    return selectExpression;
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(bodyExpression));
+                }
+            }
+            else
+            {
+                throw new NotSupportedException(nameof(bodyExpression));
+            }
+
+            return groupByCall;
         }
 
         protected override Expression VisitUnary(UnaryExpression unaryExpression)
@@ -310,7 +720,18 @@ namespace DatabaseParser.ExpressionParser
             var middleResult = this.Visit(operand);
             if (middleResult is ColumnExpression columnExpression && columnExpression.Type == typeof(bool))
             {
-                var result = new WhereConditionExpression(columnExpression, "=", 0, operatorString);
+                var whereConditionExpression = new WhereConditionExpression(columnExpression, "=", 1);
+                var result = new FunctionWhereConditionExpression(operatorString, whereConditionExpression);
+                return result;
+            }
+            else if (middleResult is WhereConditionExpression whereConditionExpression)
+            {
+                var result = new FunctionWhereConditionExpression(operatorString, whereConditionExpression);
+                return result;
+            }
+            else if (middleResult is FunctionWhereConditionExpression functionWhereConditionExpression)
+            {
+                var result = new FunctionWhereConditionExpression(operatorString, functionWhereConditionExpression);
                 return result;
             }
             else
@@ -318,25 +739,20 @@ namespace DatabaseParser.ExpressionParser
                 throw new NotSupportedException(nameof(unaryExpression));
             }
 
-            return base.VisitUnary(unaryExpression);
         }
 
         protected override Expression VisitConstant(ConstantExpression constant)
         {
             if (constant.Value is IQueryable queryable)
             {
-                //查找tableAttribute特性,看下有没有自定义表明
-                var table = (TableAttribute)queryable.ElementType.GetCustomAttribute(typeof(TableAttribute), false);
-                //如果没有该特性，直接使用类名作为表名
-                var tableName = table == null ? queryable.ElementType.Name : table.Name;
+
                 var alias = "";
-                if (MethodName == nameof(Queryable.Where))
-                {
-                    alias = this.NewAlias;
-                }
+                alias = this.NewAlias;
 
                 //生成TableExpression,并将其Columns属性缓存
-                var tableExpression = new TableExpression(queryable.ElementType, alias, tableName);
+
+                var tableExpression = new TableExpression(queryable.ElementType, alias);
+
                 _lastColumns = tableExpression.Columns.ToDictionary(x => x.ColumnName);
 
                 return tableExpression;
@@ -351,20 +767,25 @@ namespace DatabaseParser.ExpressionParser
             //如果缓存中没有任何列
             if (_lastColumns.Count == 0) return base.VisitParameter(param);
 
-            var alias = this.NewAlias;
-
             //根据_lastColumns中生成newColumns,Value = Expression.Constant(oldColumn)也就是对oldColumn的一个引用
             var newColumns = _lastColumns.Values.Select(oldColumn =>
                 new ColumnExpression(oldColumn.Type,
-
-                    alias,
+                    oldColumn.TableAlias,
                     oldColumn.MemberInfo,
                     oldColumn.Index)).ToList();
 
-            //将生成的新列赋值给缓存
-            _lastColumns = newColumns.ToDictionary(x => x.ColumnName);
+            ////将生成的新列赋值给缓存
+            _lastColumns = newColumns.ToDictionary(it => it.ColumnName);
 
-            return new SelectExpression(param.Type, alias, newColumns, null);
+            return new ColumnsExpression(newColumns);
+
+            if (MethodName == nameof(Queryable.Select) || MethodName == nameof(Queryable.Where) || MethodName == nameof(Queryable.GroupBy) || MethodName == nameof(Queryable.OrderBy))
+            {
+
+            }
+
+            throw new NotSupportedException(nameof(param));
+
 
         }
 
@@ -388,25 +809,20 @@ namespace DatabaseParser.ExpressionParser
                 }
                 else
                 {
+
                     //如果缓存中没有任何列
                     if (_lastColumns.Count == 0) return base.VisitMember(memberExpression);
                     var propertyInfo = memberExpression.Member;
                     var columnName = DbQueryUtil.GetColumnName(propertyInfo);
 
                     var alias = this.NewAlias;
+                    var columnExpression = new ColumnExpression(propertyInfo.DeclaringType, alias, propertyInfo, 0);
 
-                    //根据_lastColumns中生成newColumns,Value = Expression.Constant(oldColumn)也就是对oldColumn的一个引用
-                    var newColumns = _lastColumns.Values.Where(it => it.ColumnName == columnName).Select(oldColumn =>
-                        new ColumnExpression(oldColumn.Type,
+                    return columnExpression;
 
-                            alias,
-                            oldColumn.MemberInfo,
-                            oldColumn.Index)).ToList();
-
-                    return new SelectExpression(memberExpression.Expression.Type, alias, newColumns, null);
                 }
             }
-            else if (MethodName == nameof(Queryable.Where))
+            else if (MethodName == nameof(Queryable.Where) || MethodName == nameof(Queryable.OrderBy) || MethodName == nameof(Queryable.OrderByDescending) || MethodName == nameof(Queryable.GroupBy))
             {
                 //如果是可以直接获取值得
                 if (memberExpression.Expression is MemberExpression parentExpression)
@@ -436,15 +852,29 @@ namespace DatabaseParser.ExpressionParser
                 //如果是it.name这种形式
                 else if (memberExpression.Expression is ParameterExpression parameterExpression)
                 {
-                    //获取所有列
-                    this.VisitParameter(parameterExpression);
-                    //找到要获取的那一列
-                    var column = _lastColumns.Values.FirstOrDefault(it => it.MemberInfo == memberExpression.Member);
-                    if (column == null)
+
+                    //区分groupBy,单独提取列名
+                    if (MethodName == nameof(Queryable.GroupBy) && parameterExpression.Type.IsGenericType && parameterExpression.Type.GetGenericTypeDefinition().FullName == "System.Linq.IGrouping`2")
                     {
-                        throw new NotSupportedException(memberExpression.Member.Name);
+                        if (memberExpression.Member.Name == "Key")
+                        {
+                            return _lastGroupByExpressions[_lastGroupByExpressions.Count - 1].ColumnExpression;
+                        }
                     }
-                    return column;
+                    else
+                    {
+                        //获取所有列
+                        this.VisitParameter(parameterExpression);
+                        //找到要获取的那一列
+                        var column = _lastColumns.Values.FirstOrDefault(it => it.MemberInfo == memberExpression.Member);
+                        if (column == null)
+                        {
+                            throw new NotSupportedException(memberExpression.Member.Name);
+                        }
+                        return column;
+                    }
+
+
                 }
                 //如果是constant
                 else if (memberExpression.Expression is ConstantExpression constantExpression)
@@ -466,21 +896,17 @@ namespace DatabaseParser.ExpressionParser
         protected override Expression VisitNew(NewExpression newExpression)
         {
             var newColumns = new List<ColumnExpression>();
-            SelectExpression result = null;
+
             for (int i = 0; i < newExpression.Members.Count; i++)
             {
-
                 var memberInfo = newExpression.Members[i];
-                if (newExpression.Arguments[i] is MemberExpression memberExpression)
+                var argument = newExpression.Arguments[i];
+                if (argument is MemberExpression memberExpression)
                 {
                     var middleResult = this.Visit(memberExpression);
                     if (middleResult == null)
                     {
                         continue;
-                    }
-                    if (middleResult is SelectExpression selectExpression)
-                    {
-                        result ??= selectExpression;
                     }
                     else if (middleResult is ConstantExpression constantExpression)
                     {
@@ -488,26 +914,61 @@ namespace DatabaseParser.ExpressionParser
                         var newColumn = new ColumnExpression(constantExpression.Type, "", memberInfo, i, value);
                         newColumns.Add(newColumn);
                     }
+                    else if (middleResult is ColumnExpression columnExpression)
+                    {
+                        newColumns.Add(columnExpression);
+                    }
                 }
-                else if (newExpression.Arguments[i] is ConstantExpression constantExpression)
+                else if (argument is ConstantExpression constantExpression)
                 {
                     var value = constantExpression.Value;
                     var newColumn = new ColumnExpression(constantExpression.Type, "", memberInfo, i, value);
                     newColumns.Add(newColumn);
                 }
+                else
+                {
+                    var value = this.Visit(argument);
+                    if (value is ColumnExpression columnExpression)
+                    {
+                        newColumns.Add(columnExpression);
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(nameof(newExpression));
+                    }
+                }
+                //else if (argument is MethodCallExpression methodCallExpression)
+                //{
+                //    var value = constantExpression.Value;
+                //    var newColumn = new ColumnExpression(constantExpression.Type, "", memberInfo, i, value);
+                //    newColumns.Add(newColumn);
+                //}
 
             }
 
-            if (result != null)
+            switch (MethodName)
             {
-                result.Columns.AddRange(newColumns);
-            }
-            else
-            {
-                result = new SelectExpression(null, "", newColumns, null);
+                case nameof(Queryable.Select):
+                case nameof(Queryable.Where):
+                    var result = new ColumnsExpression(newColumns);
+                    return result;
+                    break;
+                case nameof(Queryable.GroupBy):
+
+                    var groupByExpressions = new List<GroupByExpression>();
+                    foreach (var columnExpression in newColumns)
+                    {
+                        var groupByExpression = new GroupByExpression(columnExpression);
+                        groupByExpressions.Add(groupByExpression);
+                    }
+
+                    var result2 = new GroupBysExpression(groupByExpressions);
+                    return result2;
+                    break;
             }
 
-            return result;
+
+            throw new NotSupportedException(nameof(newExpression));
         }
 
     }

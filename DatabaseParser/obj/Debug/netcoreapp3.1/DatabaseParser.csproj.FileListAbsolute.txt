@@ -8,3 +8,13 @@ C:\Users\HeZP\Desktop\code\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser
 C:\Users\HeZP\Desktop\code\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.pdb
 C:\Users\HeZP\Desktop\code\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.AssemblyReference.cache
 C:\Users\HeZP\Desktop\code\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.GeneratedMSBuildEditorConfig.editorconfig
+D:\code\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.deps.json
+D:\code\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.dll
+D:\code\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.pdb
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.AssemblyReference.cache
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.GeneratedMSBuildEditorConfig.editorconfig
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.AssemblyInfoInputs.cache
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.AssemblyInfo.cs
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.CoreCompileInputs.cache
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.dll
+D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.pdb

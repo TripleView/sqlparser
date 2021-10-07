@@ -16,6 +16,7 @@ namespace DatabaseParser.ExpressionParser
         }
 
         public override ExpressionType NodeType { get; }
+        public string NodeTypeName => ((DbExpressionType)NodeType).ToString();
         public override Type Type { get; }
 
         /// <summary>

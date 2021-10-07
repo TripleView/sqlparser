@@ -9,7 +9,7 @@ namespace DatabaseParser.Base
     /// </summary>
     public enum DatabaseType
     {
-        MsSql=1,
+        SqlServer=1,
         Oracle=2,
         Mysql=3
     }

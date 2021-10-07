@@ -9,20 +9,27 @@ namespace DatabaseParser.ExpressionParser
     /// </summary>
     public class WhereExpression : Expression
     {
-        public WhereExpression()
+        public WhereExpression(string @operator)
         {
             this.NodeType = (ExpressionType)DbExpressionType.Where;
+            this.Operator = @operator;
         }
 
         public override ExpressionType NodeType { get; }
         public override Type Type { get; }
         /// <summary>
-        /// 更新的来源
+        /// 操作符，比如=,>等
         /// </summary>
-        public virtual Expression From { get; set; }
+        public string Operator { get; set; }
+
+        public string NodeTypeName => ((DbExpressionType)NodeType).ToString();
         /// <summary>
-        /// where的子条件,是一个链表的形式
+        /// 左边的部分
         /// </summary>
-        public WhereConditionExpression WhereConditionExpressions { get; set; }
+        public WhereExpression Left { get; set; }
+        /// <summary>
+        /// 左边的部分
+        /// </summary>
+        public WhereExpression Right { get; set; }
     }
 }

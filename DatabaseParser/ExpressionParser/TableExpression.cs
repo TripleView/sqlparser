@@ -21,18 +21,30 @@ namespace DatabaseParser.ExpressionParser
         /// <param name="type">表内元素的类型(对应实体类)</param>
         /// <param name="alias">表的别名</param>
         /// <param name="name">表的名称</param>
-        public TableExpression(Type type, string alias, string name)
+        public TableExpression(Type type, string alias)
             : base((ExpressionType)DbExpressionType.Table, type)
         {
             ElementType = type;
             Alias = alias;
-            Name = name;
         }
 
         /// <summary>
         /// 表的名称
         /// </summary>
-        public string Name { get; set; }
+        public string Name 
+        {
+            get
+            {
+                //查找tableAttribute特性,看下有没有自定义表明
+                var tableAttribute =ElementType.GetCustomAttribute<TableAttribute>();
+                //如果没有该特性，直接使用类名作为表名
+                var tableName = tableAttribute == null ? ElementType.Name : tableAttribute.Name;
+                return tableName;
+            }
+
+        }
+
+
 
         /// <summary>
         /// 表的列

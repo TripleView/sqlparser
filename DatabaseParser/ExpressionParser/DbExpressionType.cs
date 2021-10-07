@@ -8,6 +8,9 @@
         Table,
         Join,
         Where,
-        WhereCondition
+        WhereCondition,
+        FunctionWhereCondition,
+        OrderBy,
+        GroupBy
     }
 }

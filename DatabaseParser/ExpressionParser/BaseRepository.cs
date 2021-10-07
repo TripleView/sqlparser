@@ -4,15 +4,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
+using DatabaseParser.Base;
 
 namespace DatabaseParser.ExpressionParser
 {
     public class BaseRepository<T> : IRepository<T>
     {
 
-        public BaseRepository()
+        public BaseRepository(DatabaseType databaseType)
         {
-            Provider = new DbQueryProvider();
+            Provider = new DbQueryProvider(databaseType);
             //最后一个表达式将是第一个IQueryable对象的引用。 
             Expression = Expression.Constant(this);
         }

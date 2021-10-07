@@ -14,7 +14,7 @@ namespace DatabaseParser.Util
         {
             if (memberInfo == null)
             {
-                return "";
+                return "*";
             }
             var columnAttribute = memberInfo.GetCustomAttribute<ColumnAttribute>();
 

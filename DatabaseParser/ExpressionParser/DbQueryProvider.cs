@@ -3,15 +3,29 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
+using DatabaseParser.Base;
+using DatabaseParser.ExpressionParser.Dialect;
 
 namespace DatabaseParser.ExpressionParser
 {
     public class DbQueryProvider : IQueryProvider
     {
         private QueryFormatter queryFormatter;
-        public DbQueryProvider()
+        public DbQueryProvider(DatabaseType databaseType)
         {
-            this.queryFormatter = new QueryFormatter();
+            switch (databaseType)
+            {
+                case DatabaseType.SqlServer:
+                    this.queryFormatter = new SqlServerQueryFormatter();
+                    break;
+                case DatabaseType.Mysql:
+                    this.queryFormatter = new MysqlQueryFormatter();
+                    break;
+                case DatabaseType.Oracle:
+                    this.queryFormatter = new OracleQueryFormatter();
+                    break;
+            }
+            
         }
         public IQueryable CreateQuery(Expression expression)
         {
