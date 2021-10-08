@@ -22,12 +22,31 @@ namespace DatabaseParser.ExpressionParser
         }
 
         
+        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value,string functionName) : this(type, TableAlias, memberInfo, index)
+        {
+            this.Value = value;
+            this.FunctionName = functionName;
+        }
+
         public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value) : this(type, TableAlias, memberInfo, index)
         {
             this.Value = value;
         }
+
+        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, string columnAlias) : this(type, TableAlias, memberInfo, index)
+        {
+            this.ColumnAlias = columnAlias;
+        }
+
+        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, string columnAlias, string functionName) : this(type, TableAlias, memberInfo, index)
+        {
+            this.ColumnAlias = columnAlias;
+            this.FunctionName = functionName;
+        }
+
         public override ExpressionType NodeType { get; }
         public override Type Type { get; }
+
 
         public string NodeTypeName => ((DbExpressionType)NodeType).ToString();
         /// <summary>
@@ -64,7 +83,10 @@ namespace DatabaseParser.ExpressionParser
         /// 表的别名
         /// </summary>
         public string TableAlias { get; set; }
-
+        /// <summary>
+        /// 列的别名
+        /// </summary>
+        public string ColumnAlias { get; set; }
         /// <summary>
         /// 列名
         /// </summary>

@@ -8,27 +8,28 @@
     ".NETCoreApp,Version=v3.1": []
   },
   "packageFolders": {
-    "C:\\Users\\hzp\\.nuget\\packages\\": {},
-    "D:\\cache\\package\\NuGetPackages": {},
-    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
+    "C:\\Users\\HeZP\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {},
+    "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\code\\sqlparser\\SqlParse\\SqlParse.csproj",
+      "projectUniqueName": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj",
       "projectName": "SqlParse",
-      "projectPath": "D:\\code\\sqlparser\\SqlParse\\SqlParse.csproj",
-      "packagesPath": "C:\\Users\\hzp\\.nuget\\packages\\",
-      "outputPath": "D:\\code\\sqlparser\\SqlParse\\obj\\",
+      "projectPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj",
+      "packagesPath": "C:\\Users\\HeZP\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\SqlParse\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "D:\\cache\\package\\NuGetPackages",
-        "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
+        "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\"
       ],
       "configFilePaths": [
-        "C:\\Users\\hzp\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\HeZP\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
       ],
       "originalTargetFrameworks": [
         "netcoreapp3.1"

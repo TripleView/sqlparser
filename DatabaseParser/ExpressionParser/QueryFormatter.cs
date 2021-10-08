@@ -10,14 +10,14 @@ namespace DatabaseParser.ExpressionParser
     public class QueryFormatter : DbExpressionVisitor
     {
 
-        public QueryFormatter(string parameterPrefix,string leftQuote,string rightQuote)
+        public QueryFormatter(string parameterPrefix, string leftQuote, string rightQuote)
         {
             this.parameterPrefix = parameterPrefix;
             this.leftQuote = leftQuote;
             this.rightQuote = rightQuote;
         }
 
-        private readonly StringBuilder _sb = new StringBuilder();
+        protected readonly StringBuilder _sb = new StringBuilder();
 
         private readonly List<SqlParameter> sqlParameters = new List<SqlParameter>();
 
@@ -25,6 +25,11 @@ namespace DatabaseParser.ExpressionParser
         private string parameterPrefix;
         private string leftQuote;
         private string rightQuote;
+
+        /// <summary>
+        /// 如果存在分页，则跳过orderby语句
+        /// </summary>
+        protected bool HasPaginationIgnoreOrderBy { set; get; } = false;
 
         public override Expression VisitTable(TableExpression table)
         {
@@ -48,8 +53,16 @@ namespace DatabaseParser.ExpressionParser
         /// <param name="tableNameOrColumnName"></param>
         /// <returns></returns>
 
-        private string BoxTableNameOrColumnName(string tableNameOrColumnName) =>
-            leftQuote + tableNameOrColumnName + rightQuote;
+        private string BoxTableNameOrColumnName(string tableNameOrColumnName)
+        {
+            if (tableNameOrColumnName == "*")
+            {
+                return tableNameOrColumnName;
+            }
+
+            return leftQuote + tableNameOrColumnName + rightQuote;
+        }
+
 
         /// <summary>
         /// 获取函数别名，比如sqlserver就是LEN，mysql就是LENGTH
@@ -72,7 +85,7 @@ namespace DatabaseParser.ExpressionParser
             {
                 throw new NotSupportedException(nameof(expression));
             }
-            
+
 
         }
 
@@ -103,7 +116,7 @@ namespace DatabaseParser.ExpressionParser
         /// <param name="obj"></param>
         /// <param name="returnRealValue">是否返回实际值</param>
         /// <returns></returns>
-        private string BoxParameter(object obj, bool returnRealValue = false)
+        protected string BoxParameter(object obj, bool returnRealValue = false)
         {
             var value = obj.ToString();
             if (string.IsNullOrWhiteSpace(value))
@@ -146,11 +159,10 @@ namespace DatabaseParser.ExpressionParser
         public override Expression VisitColumn(ColumnExpression columnExpression)
         {
             var tempStringBuilder = new StringBuilder();
-            //如果有固定值
+            //如果有固定值,比如'福建' as address
             var value = columnExpression.Value;
             if (value != null)
             {
-
                 tempStringBuilder.AppendFormat("{0} As {1}", BoxParameter(value, true), BoxTableNameOrColumnName(columnExpression.ColumnName));
             }
             else
@@ -171,14 +183,55 @@ namespace DatabaseParser.ExpressionParser
                 tempStringBuilder.Insert(tempStringBuilder.Length, ")");
             }
 
+            //添加列别名
+            if (!columnExpression.ColumnAlias.IsNullOrWhiteSpace())
+            {
+                tempStringBuilder.AppendFormat(" As {0}", BoxTableNameOrColumnName(columnExpression.ColumnAlias));
+            }
+
             _sb.Append(tempStringBuilder);
 
             return columnExpression;
         }
 
+        /// <summary>
+        /// 添加前缀限制返回一条数据
+        /// </summary>
+        protected virtual void AddPrefixLimit1()
+        {
+
+        }
+
+        /// <summary>
+        /// 添加后缀限制返回一条数据
+        /// </summary>
+        protected virtual void AddSuffixLimit1()
+        {
+
+        }
+
+        /// <summary>
+        /// 处理分页
+        /// </summary>
+        protected virtual void BoxPagination(SelectExpression select)
+        {
+
+        }
+
         public override Expression VisitSelect(SelectExpression select)
         {
             _sb.Append("SELECT ");
+
+            if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
+            {
+                _sb.AppendFormat("{0} ", select.ColumnsPrefix);
+            }
+
+            if (select.Limit1)
+            {
+                this.AddPrefixLimit1();
+            }
+
             int index = 0;
             foreach (var column in select.Columns)
             {
@@ -200,10 +253,6 @@ namespace DatabaseParser.ExpressionParser
                         _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(table.Alias));
                     }
                 }
-                
-                //_sb.Append(")");
-               
-                
 
             }
             else
@@ -231,14 +280,14 @@ namespace DatabaseParser.ExpressionParser
                 }
             }
 
-            if (select.OrderBy.IsNotNullAndNotEmpty())
+            if (select.OrderBy.IsNotNullAndNotEmpty()&&!HasPaginationIgnoreOrderBy)
             {
                 _sb.Append(" ORDER BY ");
                 for (var i = 0; i < select.OrderBy.Count; i++)
                 {
                     var orderBy = select.OrderBy[i];
                     this.VisitColumn(orderBy.ColumnExpression);
-                    _sb.Append(orderBy.OrderByType==OrderByType.Desc?" DESC":"");
+                    _sb.Append(orderBy.OrderByType == OrderByType.Desc ? " DESC" : "");
                     if (i < select.OrderBy.Count - 1)
                     {
                         _sb.Append(",");
@@ -246,12 +295,19 @@ namespace DatabaseParser.ExpressionParser
                 }
             }
 
+            if (select.Limit1)
+            {
+                this.AddSuffixLimit1();
+            }
+
+            BoxPagination(select);
+
             return select;
         }
 
         public override Expression VisitWhere(WhereExpression whereExpression)
         {
-           
+
             int index = 0;
             _sb.Append(" (");
             if (whereExpression.Left != null && whereExpression.Right != null)
@@ -263,7 +319,7 @@ namespace DatabaseParser.ExpressionParser
                 this.VisitWhere(whereExpression.Right);
                 _sb.Append(" ");
             }
-          
+
             else if (whereExpression is WhereConditionExpression whereConditionExpression)
             {
                 this.VisitColumn(whereConditionExpression.ColumnExpression);
@@ -274,14 +330,14 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (whereExpression is FunctionWhereConditionExpression functionWhereConditionExpression)
             {
-                _sb.Append(GetFunctionAlias(functionWhereConditionExpression.Operator)+ " ");
+                _sb.Append(GetFunctionAlias(functionWhereConditionExpression.Operator) + " ");
                 _sb.Append(" (");
                 this.VisitWhere(functionWhereConditionExpression.WhereExpression);
                 _sb.Append(" )");
             }
 
             _sb.Append(" )");
-          
+
 
             return whereExpression;
         }

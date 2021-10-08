@@ -1,11 +1,13 @@
-using System;
-using System.Collections.Generic;
 using DatabaseParser.Base;
 using DatabaseParser.ExpressionParser;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Debug;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using Xunit;
 
 namespace TestProject1
@@ -41,6 +43,17 @@ namespace TestProject1
         }
     }
 
+    public class MysqlPersonRepository : BaseRepository<Person>, IPersonRepository
+    {
+        public MysqlPersonRepository() : base(DatabaseType.Mysql)
+        {
+
+        }
+        public void ExecuteDelete()
+        {
+
+        }
+    }
     public interface IPersonRepository : IRepository<Person>
     {
         void ExecuteDelete();
@@ -671,7 +684,7 @@ namespace TestProject1
         public void TestOrderBy()
         {
             var personRepository = new PersonRepository();
-            var r1 = personRepository.OrderBy(it=>it.Age).ToList();
+            var r1 = personRepository.OrderBy(it => it.Age).ToList();
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
             Assert.Equal("SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0] ORDER BY [p0].[Age]", r1MiddleResult.Sql);
@@ -732,12 +745,12 @@ namespace TestProject1
             Assert.Empty(r1MiddleResult.SqlParameters);
         }
 
-        
+
         [Fact]
         public void TestGroupBy()
         {
             var personRepository = new PersonRepository();
-            var r1 = personRepository.GroupBy(it=>it.Name).ToList();
+            var r1 = personRepository.GroupBy(it => it.Name).ToList();
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
             Assert.Equal("SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0] GROUP BY [p0].[Name]", r1MiddleResult.Sql);
@@ -748,7 +761,7 @@ namespace TestProject1
         public void TestGroupBy2()
         {
             var personRepository = new PersonRepository();
-            var r1 = personRepository.GroupBy(it => new {it.Name,it.Age}).ToList();
+            var r1 = personRepository.GroupBy(it => new { it.Name, it.Age }).ToList();
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
             Assert.Equal("SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0] GROUP BY [p0].[Name],[p0].[Age]", r1MiddleResult.Sql);
@@ -761,20 +774,219 @@ namespace TestProject1
             var r1 = personRepository.GroupBy(it => it.Name).Select(g => new { Key = g.Key, Count = g.Count(), Uv = g.Sum(it => it.Age) }).ToList();
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
-            Assert.Equal("SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0] GROUP BY [p0].[Name]", r1MiddleResult.Sql);
+            Assert.Equal("SELECT [p0].[Name] As [Key], COUNT(*) As [Count], SUM([p0].[Age]) As [Uv] FROM [Person] As [p0] GROUP BY [p0].[Name]", r1MiddleResult.Sql);
             Assert.Empty(r1MiddleResult.SqlParameters);
         }
+
         [Fact]
-        public void TestEf()
+        public void TestGroupBy4()
         {
-            var c = new myDbContext();
-            var d = c.person.GroupBy(it => new { it.Name, it.Age }).Select(g => new { Key = g.Key, Count = g.Count(), Uv = g.Sum(it => it.Age) }).ToList();
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.GroupBy(it => it.Name).Select(g => new { Key = g.Key, Count = g.Count(), Uv = g.Sum(it => it.Age) }).ToDictionary(it => it.Key);
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT [p0].[Name] As [Key], COUNT(*) As [Count], SUM([p0].[Age]) As [Uv] FROM [Person] As [p0] GROUP BY [p0].[Name]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestGroupBy5()
+        {
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.GroupBy(it => new { it.Name, it.Age }).Select(g => new { Key = g.Key, Count = g.Count(), Uv = g.Sum(it => it.Age) }).ToDictionary(it => it.Key);
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT [p0].[Name], [p0].[Age], COUNT(*) As [Count], SUM([p0].[Age]) As [Uv] FROM [Person] As [p0] GROUP BY [p0].[Name],[p0].[Age]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestGroupBy6()
+        {
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.GroupBy(it => new { it.Name, it.Age }).Select(g => new { Key = g.Key, Count = g.Count(), Uv = g.Sum(it => it.Age), Um = g.Min(it => it.Age), uu = g.Average(it => it.Age), umx = g.Max(it => it.Age) }).ToDictionary(it => it.Key);
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT [p0].[Name], [p0].[Age], COUNT(*) As [Count], SUM([p0].[Age]) As [Uv], MIN([p0].[Age]) As [Um], AVG([p0].[Age]) As [uu], MAX([p0].[Age]) As [umx] FROM [Person] As [p0] GROUP BY [p0].[Name],[p0].[Age]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestFirstOrDefault()
+        {
+            var personRepository = new PersonRepository();
+
+            var r1 = personRepository.FirstOrDefault();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT TOP(1) [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestFirstOrDefault2()
+        {
+            var personRepository = new PersonRepository();
+
+            var r1 = personRepository.First();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT TOP(1) [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestFirstOrDefault3()
+        {
+            var personRepository = new PersonRepository();
+
+            var r1 = personRepository.Distinct().FirstOrDefault(); 
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT TOP(1) [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+       
+        [Fact]
+        public void TestMysqlFirstOrDefault()
+        {
+            var personRepository = new MysqlPersonRepository();
+
+            var r1 = personRepository.FirstOrDefault();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT `p0`.`Name`, `p0`.`Age`, `p0`.`HaveChildren` FROM `Person` As `p0` limit 1", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestMysqlFirstOrDefault2()
+        {
+            var personRepository = new MysqlPersonRepository();
+
+            var r1 = personRepository.Distinct().FirstOrDefault();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT `p0`.`Name`, `p0`.`Age`, `p0`.`HaveChildren` FROM `Person` As `p0` limit 1", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestDistinct()
+        {
+            var personRepository = new PersonRepository();
+
+            var r1 = personRepository.Distinct().ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestSkipAndTake()
+        {
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.Skip(1).Take(1).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestSkipAndTake2()
+        {
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.Take(5).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM [Person] As [p0]", r1MiddleResult.Sql);
+            Assert.Empty(r1MiddleResult.SqlParameters);
+        }
+
+        [Fact]
+        public void TestMysqlSkipAndTake()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.Skip(1).Take(1).ToList();
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+            Assert.Equal("SELECT `p0`.`Name`, `p0`.`Age`, `p0`.`HaveChildren` FROM `Person` As `p0` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2,r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
+        public void TestMysqlSkipAndTake2()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.Take(5).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT `p0`.`Name`, `p0`.`Age`, `p0`.`HaveChildren` FROM `Person` As `p0` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(0, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(5, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
+        public void TestMysqlSkipAndTake3()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.Skip(5).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT `p0`.`Name`, `p0`.`Age`, `p0`.`HaveChildren` FROM `Person` As `p0` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(5, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(int.MaxValue, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
+        public void TestMysqlEf()
+        {
+            var c = new MySqlDbContext();
+            var d = c.person.FirstOrDefault();
+            var e = c.person.Take(5).ToList();
+            //var d = c.person.OrderBy(it => new { it.Age, it.Name }).ToList();
+            //.ToDictionary(g => g.Key, g => g.Count);
+        }
+
+        [Fact]
+        public void TestSqlServerEf()
+        {
+            var c = new SqlServerDbContext();
+            var d = c.person.Where(it=>it.Name=="hzp").OrderBy(it=>it.Age).Select(it=>it.HaveChildren).Skip(5).Take(5).ToList();
+            //var e = c.person.Distinct().FirstOrDefault();
             //var d = c.person.OrderBy(it => new { it.Age, it.Name }).ToList();
             //.ToDictionary(g => g.Key, g => g.Count);
         }
     }
 
-    public class myDbContext : DbContext
+    public class MySqlDbContext : DbContext
     {
         [Obsolete]
         public static readonly LoggerFactory LoggerFactory = new LoggerFactory(new[] { new DebugLoggerProvider() });
@@ -782,7 +994,28 @@ namespace TestProject1
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseLoggerFactory(LoggerFactory);
-            optionsBuilder.UseMySQL("server=localhost;userid=root;password=123456;database=world;");
+            optionsBuilder.UseMySQL("server=localhost;userid=root;password=123456;database=test;");
+            base.OnConfiguring(optionsBuilder);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Person>().HasNoKey();
+            base.OnModelCreating(modelBuilder);
+        }
+    }
+
+   
+    public class SqlServerDbContext : DbContext
+    {
+        [Obsolete]
+        public static readonly LoggerFactory LoggerFactory = new LoggerFactory(new[] { new DebugLoggerProvider() });
+        public DbSet<Person> person { get; set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseLoggerFactory(LoggerFactory);
+            optionsBuilder.ReplaceService<IQueryTranslationPostprocessorFactory, SqlServer2008QueryTranslationPostprocessorFactory>();
+            optionsBuilder.UseSqlServer("server=172.16.189.245;User ID=SA;Password=Aa123456;database=Test;");
             base.OnConfiguring(optionsBuilder);
         }
 

@@ -18,3 +18,13 @@ D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.Assembly
 D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.CoreCompileInputs.cache
 D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.dll
 D:\code\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.pdb
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.deps.json
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.dll
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\bin\Debug\netcoreapp3.1\DatabaseParser.pdb
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.AssemblyReference.cache
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.AssemblyInfoInputs.cache
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.AssemblyInfo.cs
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.csproj.CoreCompileInputs.cache
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.dll
+C:\Users\HeZP\Desktop\code\newSqlParser\sqlparser\DatabaseParser\obj\Debug\netcoreapp3.1\DatabaseParser.pdb

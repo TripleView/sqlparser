@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "XY6IlNyyOvhGWhUap3Yj1iPnXzC03J+CbRovqmtxYy396rzuDC+dA+6fYfUNq0IUNqR6FWlTvX1SgpHlT32zcg==",
+  "dgSpecHash": "q4XDprvISCg+R4mqrj35PNkFuczWFmsKbjnr63d7Nib9zgLJgCMpc0vtnSgMrBELohwc0Ldgf+KtrPh9hn895Q==",
   "success": true,
-  "projectFilePath": "D:\\code\\sqlparser\\SqlParse\\SqlParse.csproj",
+  "projectFilePath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

@@ -161,6 +161,23 @@ namespace DatabaseParser.ExpressionParser
                     var lastMethodCallName4 = methodCallStack.Pop();
                     lastMethodCalls.Add(lastMethodCallName4);
                     return result4;
+                case nameof(Queryable.Distinct):
+                case nameof(Queryable.First):
+                case nameof(Queryable.FirstOrDefault):
+                    methodCallStack.Push(methodName);
+                    var result5 = this.VisitFirstOrDefaultDistinctCall(node);
+                    var lastMethodCallName5 = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName5);
+                    return result5;
+                case nameof(Queryable.Skip):
+                case nameof(Queryable.Take):
+                    methodCallStack.Push(methodName);
+
+                    var result7 = this.VisitSkipTakeCall(node);
+                    var lastMethodCallName7 = methodCallStack.Pop();
+                    lastMethodCalls.Add(lastMethodCallName7);
+                    return result7;
+
             }
 
             //针对groupBy进行单独处理
@@ -173,7 +190,16 @@ namespace DatabaseParser.ExpressionParser
                         var result = new ColumnExpression(null, "", null, 0);
                         result.FunctionName = functionName;
                         return result;
+
+                    case nameof(Queryable.Max):
+                    case nameof(Queryable.Min):
                     case nameof(Queryable.Sum):
+                    case nameof(Queryable.Average):
+                        if (functionName == "AVERAGE")
+                        {
+                            functionName = "AVG";
+                        }
+
                         var lambda = (LambdaExpression)this.StripQuotes(node.Arguments[1]);
                         var value = this.Visit(lambda.Body);
                         if (value is ColumnExpression columnExpression)
@@ -516,6 +542,103 @@ namespace DatabaseParser.ExpressionParser
             return base.VisitBinary(binaryExpression);
         }
 
+        public virtual Expression VisitFirstOrDefaultDistinctCall(MethodCallExpression firstOrDefaultCall)
+        {
+            var methodName = firstOrDefaultCall.Method.Name;
+            var sourceExpression = this.Visit(firstOrDefaultCall.Arguments[0]);
+
+            if (sourceExpression is TableExpression table)
+            {
+                var result = new SelectExpression(null, "", table.Columns, table);
+                if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
+                {
+                    result.Limit1 = true;
+                }
+                else if(methodName == nameof(Queryable.Distinct))
+                {
+                    result.ColumnsPrefix = "DISTINCT";
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(firstOrDefaultCall));
+                }
+                
+                return result;
+            }
+            else if (sourceExpression is SelectExpression selectExpression)
+            {
+                if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
+                {
+                    selectExpression.Limit1 = true;
+                }
+                else if (methodName == nameof(Queryable.Distinct))
+                {
+                    selectExpression.ColumnsPrefix = "DISTINCT";
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(firstOrDefaultCall));
+                }
+                return selectExpression;
+            }
+            else
+            {
+                throw new NotSupportedException(nameof(firstOrDefaultCall));
+            }
+        }
+
+        public virtual Expression VisitSkipTakeCall(MethodCallExpression skipTakExpression)
+        {
+            var methodName = skipTakExpression.Method.Name;
+            var sourceExpression = this.Visit(skipTakExpression.Arguments[0]);
+            var countExpression = this.Visit(skipTakExpression.Arguments[1]);
+            if (!(countExpression is ConstantExpression constantExpression))
+            {
+                throw new ArgumentNullException("count");
+            }
+
+            var count =(int) constantExpression.Value;
+
+            if (sourceExpression is TableExpression table)
+            {
+                var result = new SelectExpression(null, "", table.Columns, table);
+                if (methodName == nameof(Queryable.Skip))
+                {
+                    result.Skip = count;
+                }
+                else if (methodName == nameof(Queryable.Take))
+                {
+                    result.Take = count;
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(skipTakExpression));
+                }
+
+                return result;
+            }
+            else if (sourceExpression is SelectExpression selectExpression)
+            {
+                if (methodName == nameof(Queryable.Skip))
+                {
+                    selectExpression.Skip = count;
+                }
+                else if (methodName == nameof(Queryable.Take))
+                {
+                    selectExpression.Take = count;
+                }
+                else
+                {
+                    throw new NotSupportedException(nameof(skipTakExpression));
+                }
+                return selectExpression;
+            }
+            else
+            {
+                throw new NotSupportedException(nameof(skipTakExpression));
+            }
+        }
+
         public virtual Expression VisitWhereCall(MethodCallExpression whereCall)
         {
             if (MethodName == nameof(Queryable.GroupBy))
@@ -799,6 +922,18 @@ namespace DatabaseParser.ExpressionParser
 
         protected override Expression VisitMember(MemberExpression memberExpression)
         {
+            //区分groupBy,单独提取列名
+            if (LastMethodName == nameof(Queryable.GroupBy) && memberExpression.Expression is ParameterExpression groupByParameterExpression && groupByParameterExpression.Type.IsGenericType && groupByParameterExpression.Type.GetGenericTypeDefinition().FullName == "System.Linq.IGrouping`2")
+            {
+                if (memberExpression.Member.Name == "Key")
+                {
+                    var columnsExpression =
+                        new ColumnsExpression(_lastGroupByExpressions.Select(it => it.ColumnExpression).ToList());
+
+                    return columnsExpression;
+                }
+            }
+
             if (MethodName == nameof(Queryable.Select))
             {
                 //如果是可以直接获取值得
@@ -819,10 +954,10 @@ namespace DatabaseParser.ExpressionParser
                     var columnExpression = new ColumnExpression(propertyInfo.DeclaringType, alias, propertyInfo, 0);
 
                     return columnExpression;
-
                 }
             }
-            else if (MethodName == nameof(Queryable.Where) || MethodName == nameof(Queryable.OrderBy) || MethodName == nameof(Queryable.OrderByDescending) || MethodName == nameof(Queryable.GroupBy))
+            //if (MethodName == nameof(Queryable.Where) || MethodName == nameof(Queryable.OrderBy) || MethodName == nameof(Queryable.OrderByDescending) || MethodName == nameof(Queryable.GroupBy))
+            else
             {
                 //如果是可以直接获取值得
                 if (memberExpression.Expression is MemberExpression parentExpression)
@@ -852,28 +987,15 @@ namespace DatabaseParser.ExpressionParser
                 //如果是it.name这种形式
                 else if (memberExpression.Expression is ParameterExpression parameterExpression)
                 {
-
-                    //区分groupBy,单独提取列名
-                    if (MethodName == nameof(Queryable.GroupBy) && parameterExpression.Type.IsGenericType && parameterExpression.Type.GetGenericTypeDefinition().FullName == "System.Linq.IGrouping`2")
+                    //获取所有列
+                    this.VisitParameter(parameterExpression);
+                    //找到要获取的那一列
+                    var column = _lastColumns.Values.FirstOrDefault(it => it.MemberInfo == memberExpression.Member);
+                    if (column == null)
                     {
-                        if (memberExpression.Member.Name == "Key")
-                        {
-                            return _lastGroupByExpressions[_lastGroupByExpressions.Count - 1].ColumnExpression;
-                        }
+                        throw new NotSupportedException(memberExpression.Member.Name);
                     }
-                    else
-                    {
-                        //获取所有列
-                        this.VisitParameter(parameterExpression);
-                        //找到要获取的那一列
-                        var column = _lastColumns.Values.FirstOrDefault(it => it.MemberInfo == memberExpression.Member);
-                        if (column == null)
-                        {
-                            throw new NotSupportedException(memberExpression.Member.Name);
-                        }
-                        return column;
-                    }
-
+                    return column;
 
                 }
                 //如果是constant
@@ -918,6 +1040,19 @@ namespace DatabaseParser.ExpressionParser
                     {
                         newColumns.Add(columnExpression);
                     }
+                    //针对groupby的select进行特殊处理,类似于g.key这种，这个key可能是单个字段，也可能是多个字段
+                    else if (LastMethodName == nameof(Queryable.GroupBy) && middleResult is ColumnsExpression columnsExpression)
+                    {
+                        var columnCount = columnsExpression.ColumnExpressions.Count;
+
+                        foreach (var column in columnsExpression.ColumnExpressions)
+                        {
+                            var tempColumnExpression = new ColumnExpression(column.Type, column.TableAlias,
+                                column.MemberInfo, 0, columnCount > 1 ? "" : memberInfo.Name, column.FunctionName);
+                            newColumns.Add(tempColumnExpression);
+                        }
+
+                    }
                 }
                 else if (argument is ConstantExpression constantExpression)
                 {
@@ -925,11 +1060,17 @@ namespace DatabaseParser.ExpressionParser
                     var newColumn = new ColumnExpression(constantExpression.Type, "", memberInfo, i, value);
                     newColumns.Add(newColumn);
                 }
-                else
+                else if (argument is MethodCallExpression methodCallExpression)
                 {
                     var value = this.Visit(argument);
                     if (value is ColumnExpression columnExpression)
                     {
+                        //针对groupby的select进行特殊处理
+                        if (LastMethodName == nameof(Queryable.GroupBy))
+                        {
+                            columnExpression = new ColumnExpression(columnExpression.Type, columnExpression.TableAlias,
+                                columnExpression.MemberInfo, 0, memberInfo.Name, columnExpression.FunctionName);
+                        }
                         newColumns.Add(columnExpression);
                     }
                     else

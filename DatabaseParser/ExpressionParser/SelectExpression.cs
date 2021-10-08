@@ -24,7 +24,26 @@ namespace DatabaseParser.ExpressionParser
         }
 
         #region 属性
-
+        /// <summary>
+        /// 列前缀，比如DISTINCT
+        /// </summary>
+        public string ColumnsPrefix { get; set; }
+        /// <summary>
+        /// 是否只取一条数据
+        /// </summary>
+        public bool Limit1 { get; set; }
+        /// <summary>
+        /// 跳过多少数据
+        /// </summary>
+        public int? Skip { get; set; }
+        /// <summary>
+        /// 取多少数据
+        /// </summary>
+        public int? Take { get; set; }
+        /// <summary>
+        /// 判断是否存在分页
+        /// </summary>
+        protected bool HasPagination => Skip.HasValue || Take.HasValue;
         /// <summary>
         /// Where条件
         /// </summary>
