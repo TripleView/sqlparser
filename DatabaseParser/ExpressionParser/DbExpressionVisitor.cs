@@ -552,7 +552,7 @@ namespace DatabaseParser.ExpressionParser
                 var result = new SelectExpression(null, "", table.Columns, table);
                 if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
                 {
-                    result.Limit1 = true;
+                    result.Take=1;
                 }
                 else if(methodName == nameof(Queryable.Distinct))
                 {
@@ -569,7 +569,7 @@ namespace DatabaseParser.ExpressionParser
             {
                 if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
                 {
-                    selectExpression.Limit1 = true;
+                    selectExpression.Take = 1;
                 }
                 else if (methodName == nameof(Queryable.Distinct))
                 {
@@ -725,10 +725,7 @@ namespace DatabaseParser.ExpressionParser
                             break;
                     }
                     var orderByExpression = new OrderByExpression(orderByType, columnExpression);
-                    if (selectExpression.OrderBy.IsNotNullAndNotEmpty())
-                    {
-                        selectExpression.OrderBy.Add(orderByExpression);
-                    }
+                    selectExpression.OrderBy.Add(orderByExpression);
 
                     return selectExpression;
                 }
@@ -764,12 +761,15 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
-                if (bodyExpression is ColumnsExpression columnsExpression)
+                if (bodyExpression is ColumnExpression columnExpression)
+                {
+                    selectExpression.Columns = new List<ColumnExpression>() { columnExpression };
+                }
+                else if (bodyExpression is ColumnsExpression columnsExpression)
                 {
                     selectExpression.Columns = columnsExpression.ColumnExpressions;
-
-                    return selectExpression;
                 }
+                return selectExpression;
             }
 
             return selectCall;

@@ -1,32 +1,246 @@
-﻿using System.Text;
+﻿using System;
+using System.Linq;
+using System.Text;
 using DatabaseParser.Util;
 
 namespace DatabaseParser.ExpressionParser.Dialect
 {
-    public class SqlServerQueryFormatter:QueryFormatter
+    public class SqlServerQueryFormatter : QueryFormatter
     {
-        public SqlServerQueryFormatter():base("@","[","]")
+        public SqlServerQueryFormatter() : base("@", "[", "]")
         {
-            this.HasPaginationIgnoreOrderBy = true;
+
         }
 
-
-        protected override void AddPrefixLimit1()
+        /// <summary>
+        /// 有跳过的分页
+        /// </summary>
+        /// <param name="select"></param>
+        private void HasSkipPaging(SelectExpression select)
         {
-            _sb.Append("TOP(1) ");
-            base.AddPrefixLimit1();
-        }
+            _sb.Append("SELECT ");
 
-
-        protected override void BoxPagination(SelectExpression select)
-        {
-            if (!select.Skip.HasValue && !select.Take.HasValue)
+            if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
             {
-                return;
+                _sb.AppendFormat("{0} ", select.ColumnsPrefix);
             }
 
+            int index = 0;
+
+            foreach (var column in select.Columns)
+            {
+                var tempColumn = column.DeepClone();
+                tempColumn.TableAlias = "T";
+                if (index++ > 0) _sb.Append(", ");
+                this.VisitColumn(tempColumn);
+            }
+
+            _sb.Append(" FROM (");
+            _sb.Append("SELECT ");
+
+            index = 0;
+            if (select.From is TableExpression fromTable)
+            {
+                var except = fromTable.Columns.Where(it =>
+                    select.Columns.Any(x => x.MemberInfo == it.MemberInfo) || select.OrderBy
+                        .Select(x => x.ColumnExpression).Any(x => x.MemberInfo == it.MemberInfo)).Distinct().ToList();
+
+                foreach (var column in except)
+                {
+                    if (index++ > 0) _sb.Append(", ");
+                    this.VisitColumn(column);
+                }
+            }
+            else
+            {
+                throw new NotSupportedException(nameof(select.From));
+            }
+
+            //提取orderBy
+            var oldSb = _sb.ToString();
+            _sb.Clear();
+
+            _sb.Append(" ORDER BY ");
+
+            if (select.OrderBy.IsNotNullAndNotEmpty())
+            {
+                for (var i = 0; i < select.OrderBy.Count; i++)
+                {
+                    var orderBy = select.OrderBy[i];
+                    this.VisitColumn(orderBy.ColumnExpression);
+                    _sb.Append(orderBy.OrderByType == OrderByType.Desc ? " DESC" : "");
+                    if (i < select.OrderBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
+            else
+            {
+                _sb.Append("(SELECT 1)");
+            }
+
+            var orderByString = _sb.ToString();
+
+            _sb.Clear();
+            _sb.Append(oldSb);
+            var tableNameAlias = "";
+            //加入row_number开窗函数
+
+            _sb.AppendFormat(",ROW_NUMBER() OVER({0}) AS [ROW] ", orderByString);
+
+            if (select.From != null)
+            {
+                _sb.Append(" FROM ");
+                //_sb.Append("(");
+                if (select.From is TableExpression table)
+                {
+                    var tableName = BoxTableNameOrColumnName(table.Name);
+                    _sb.Append(tableName);
+                    if (!table.Alias.IsNullOrWhiteSpace())
+                    {
+                        tableNameAlias = BoxTableNameOrColumnName(table.Alias);
+                        _sb.AppendFormat(" As {0}", tableNameAlias);
+                    }
+                }
+
+            }
+            else
+            {
+                throw new ArgumentException("loss from");
+            }
+
+            if (select.Where != null)
+            {
+                _sb.Append(" WHERE ");
+                this.VisitWhere(select.Where);
+            }
+
+            if (select.GroupBy.IsNotNullAndNotEmpty())
+            {
+                _sb.Append(" GROUP BY ");
+                for (var i = 0; i < select.GroupBy.Count; i++)
+                {
+                    var groupBy = select.GroupBy[i];
+                    this.VisitColumn(groupBy.ColumnExpression);
+                    if (i < select.GroupBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
+
+            _sb.Append(") AS [T] WHERE T.[ROW]>");
+            var hasSkip = select.Skip.HasValue;
+            if (hasSkip)
+            {
+                _sb.Append(BoxParameter(select.Skip.Value));
+            }
+            else
+            {
+                _sb.Append(BoxParameter(0));
+            }
+
+            _sb.Append(" AND T.[ROW]<=");
+            var theLast = select.Skip.GetValueOrDefault(0) + select.Take.GetValueOrDefault(0);
+            _sb.Append(BoxParameter(theLast));
+        }
+
+        /// <summary>
+        /// 没有跳过分页
+        /// </summary>
+        /// <param name="select"></param>
+        private void OnlyTakePaging(SelectExpression select)
+        {
+            _sb.Append("SELECT ");
+
+            if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
+            {
+                _sb.AppendFormat("{0} ", select.ColumnsPrefix);
+            }
+
+            _sb.AppendFormat("TOP({0}) ", select.Take.GetValueOrDefault(0));
+
+            int index = 0;
+            foreach (var column in select.Columns)
+            {
+                if (index++ > 0) _sb.Append(", ");
+                this.VisitColumn(column);
+            }
+
+            var alias = select.Alias;
+
+            if (select.From != null)
+            {
+                _sb.Append(" FROM ");
+                //_sb.Append("(");
+                if (select.From is TableExpression table)
+                {
+                    _sb.Append(BoxTableNameOrColumnName(table.Name));
+                    if (!table.Alias.IsNullOrWhiteSpace())
+                    {
+                        _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(table.Alias));
+                    }
+                }
+
+            }
+            else
+            {
+                throw new ArgumentException("loss from");
+            }
+
+            if (select.Where != null)
+            {
+                _sb.Append(" WHERE ");
+                this.VisitWhere(select.Where);
+            }
+
+            if (select.GroupBy.IsNotNullAndNotEmpty())
+            {
+                _sb.Append(" GROUP BY ");
+                for (var i = 0; i < select.GroupBy.Count; i++)
+                {
+                    var groupBy = select.GroupBy[i];
+                    this.VisitColumn(groupBy.ColumnExpression);
+                    if (i < select.GroupBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
+
+            if (select.OrderBy.IsNotNullAndNotEmpty())
+            {
+                _sb.Append(" ORDER BY ");
+                for (var i = 0; i < select.OrderBy.Count; i++)
+                {
+                    var orderBy = select.OrderBy[i];
+                    this.VisitColumn(orderBy.ColumnExpression);
+                    _sb.Append(orderBy.OrderByType == OrderByType.Desc ? " DESC" : "");
+                    if (i < select.OrderBy.Count - 1)
+                    {
+                        _sb.Append(",");
+                    }
+                }
+            }
+        }
+
+        protected override void HandlingPaging(SelectExpression select)
+        {
+            if (select.Skip.HasValue)
+            {
+                this.HasSkipPaging(select);
+            }
+            else
+            {
+                OnlyTakePaging(select);
+            }
+        }
+
+        protected void BoxPagination(SelectExpression select)
+        {
             var orderByStringBuilder = new StringBuilder();
-            if (select.OrderBy.IsNotNullAndNotEmpty() && !HasPaginationIgnoreOrderBy)
+            if (select.OrderBy.IsNotNullAndNotEmpty())
             {
                 orderByStringBuilder.Append(" ORDER BY ");
                 for (var i = 0; i < select.OrderBy.Count; i++)
@@ -68,7 +282,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 _sb.Append(BoxParameter(int.MaxValue));
             }
 
-            base.BoxPagination(select);
+
         }
     }
 }

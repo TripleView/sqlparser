@@ -21,8 +21,8 @@ namespace DatabaseParser.ExpressionParser
             this.MemberInfo = memberInfo;
         }
 
-        
-        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value,string functionName) : this(type, TableAlias, memberInfo, index)
+
+        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value, string functionName) : this(type, TableAlias, memberInfo, index)
         {
             this.Value = value;
             this.FunctionName = functionName;
@@ -52,7 +52,7 @@ namespace DatabaseParser.ExpressionParser
         /// <summary>
         /// 元信息
         /// </summary>
-        public MemberInfo MemberInfo { get;}
+        public MemberInfo MemberInfo { get; }
         /// <summary>
         /// 包围列的函数，len
         /// </summary>
@@ -97,6 +97,20 @@ namespace DatabaseParser.ExpressionParser
         /// </summary>
         public int Index { get; set; }
 
+        /// <summary>
+        /// 深度克隆本身
+        /// </summary>
+        /// <returns></returns>
+        public ColumnExpression DeepClone()
+        {
+            var newColumnExpression =
+                new ColumnExpression(this.Type, this.TableAlias, this.MemberInfo, this.Index, this.Value)
+                {
+                    ColumnAlias = this.ColumnAlias,
+                    FunctionName = this.FunctionName
+                };
+            return newColumnExpression;
+        }
         #endregion
     }
 }

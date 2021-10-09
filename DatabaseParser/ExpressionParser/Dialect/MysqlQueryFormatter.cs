@@ -7,12 +7,7 @@
             
         }
 
-        protected override void AddSuffixLimit1()
-        {
-            _sb.Append(" limit 1 ");
-            base.AddSuffixLimit1();
-        }
-
+        
         protected override string GetFunctionAlias(string functionName)
         {
             if (functionName == "LEN")
@@ -22,7 +17,13 @@
             return base.GetFunctionAlias(functionName);
         }
 
-        protected override void BoxPagination(SelectExpression select)
+        protected override void HandlingPaging(SelectExpression select)
+        {
+            base.HandlingNormal(select);
+            BoxPagination(select);
+        }
+
+        protected void BoxPagination(SelectExpression select)
         {
             if (!select.Skip.HasValue && !select.Take.HasValue)
             {
@@ -50,7 +51,6 @@
                 _sb.Append(BoxParameter(int.MaxValue));
             }
 
-            base.BoxPagination(select);
         }
     }
 }

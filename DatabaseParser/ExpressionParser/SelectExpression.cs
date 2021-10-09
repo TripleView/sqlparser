@@ -28,10 +28,7 @@ namespace DatabaseParser.ExpressionParser
         /// 列前缀，比如DISTINCT
         /// </summary>
         public string ColumnsPrefix { get; set; }
-        /// <summary>
-        /// 是否只取一条数据
-        /// </summary>
-        public bool Limit1 { get; set; }
+      
         /// <summary>
         /// 跳过多少数据
         /// </summary>
@@ -43,7 +40,7 @@ namespace DatabaseParser.ExpressionParser
         /// <summary>
         /// 判断是否存在分页
         /// </summary>
-        protected bool HasPagination => Skip.HasValue || Take.HasValue;
+        public bool HasPagination => Skip.HasValue || Take.HasValue;
         /// <summary>
         /// Where条件
         /// </summary>

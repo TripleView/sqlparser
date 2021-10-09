@@ -26,11 +26,6 @@ namespace DatabaseParser.ExpressionParser
         private string leftQuote;
         private string rightQuote;
 
-        /// <summary>
-        /// 如果存在分页，则跳过orderby语句
-        /// </summary>
-        protected bool HasPaginationIgnoreOrderBy { set; get; } = false;
-
         public override Expression VisitTable(TableExpression table)
         {
             _sb.Append("SELECT ");
@@ -53,7 +48,7 @@ namespace DatabaseParser.ExpressionParser
         /// <param name="tableNameOrColumnName"></param>
         /// <returns></returns>
 
-        private string BoxTableNameOrColumnName(string tableNameOrColumnName)
+        protected string BoxTableNameOrColumnName(string tableNameOrColumnName)
         {
             if (tableNameOrColumnName == "*")
             {
@@ -195,41 +190,23 @@ namespace DatabaseParser.ExpressionParser
         }
 
         /// <summary>
-        /// 添加前缀限制返回一条数据
-        /// </summary>
-        protected virtual void AddPrefixLimit1()
-        {
-
-        }
-
-        /// <summary>
-        /// 添加后缀限制返回一条数据
-        /// </summary>
-        protected virtual void AddSuffixLimit1()
-        {
-
-        }
-
-        /// <summary>
         /// 处理分页
         /// </summary>
-        protected virtual void BoxPagination(SelectExpression select)
+        protected virtual void HandlingPaging(SelectExpression select)
         {
 
         }
 
-        public override Expression VisitSelect(SelectExpression select)
+        /// <summary>
+        /// 处理正常逻辑
+        /// </summary>
+        protected void HandlingNormal(SelectExpression select)
         {
             _sb.Append("SELECT ");
 
             if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
             {
                 _sb.AppendFormat("{0} ", select.ColumnsPrefix);
-            }
-
-            if (select.Limit1)
-            {
-                this.AddPrefixLimit1();
             }
 
             int index = 0;
@@ -280,7 +257,7 @@ namespace DatabaseParser.ExpressionParser
                 }
             }
 
-            if (select.OrderBy.IsNotNullAndNotEmpty()&&!HasPaginationIgnoreOrderBy)
+            if (select.OrderBy.IsNotNullAndNotEmpty())
             {
                 _sb.Append(" ORDER BY ");
                 for (var i = 0; i < select.OrderBy.Count; i++)
@@ -294,13 +271,18 @@ namespace DatabaseParser.ExpressionParser
                     }
                 }
             }
+        }
 
-            if (select.Limit1)
+        public override Expression VisitSelect(SelectExpression select)
+        {
+            if (select.HasPagination)
             {
-                this.AddSuffixLimit1();
+                HandlingPaging(select);
             }
-
-            BoxPagination(select);
+            else
+            {
+                HandlingNormal(select);
+            }
 
             return select;
         }
