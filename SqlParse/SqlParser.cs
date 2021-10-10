@@ -78,36 +78,36 @@ namespace SqlParse
         /// <returns></returns>
         private  SqlTokenType DetermineTokenType(string text)
         {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                throw new Exception("sql为空");
-            }
+            //if (string.IsNullOrWhiteSpace(text))
+            //{
+            //    throw new Exception("sql为空");
+            //}
 
-            var firstLetter = text.Substring(0, 1);
-            if (firstLetter == parameterPrefix)
-            {
-                return SqlTokenType.Variable;
-            }
+            //var firstLetter = text.Substring(0, 1);
+            //if (firstLetter == parameterPrefix)
+            //{
+            //    return SqlTokenType.Variable;
+            //}
 
-            if (base.SpecialCharactersList.Contains(text))
-            {
-                return SqlTokenType.SpecialCharacters;
-            }
+            //if (base.SpecialCharactersList.Contains(text))
+            //{
+            //    return SqlTokenType.SpecialCharacters;
+            //}
 
-            if (base.OperatorList.Contains(text))
-            {
-                return SqlTokenType.Operator;
-            }
+            //if (base.OperatorList.Contains(text))
+            //{
+            //    return SqlTokenType.Operator;
+            //}
 
-            if (base.FunctionList.Contains(firstLetter))
-            {
-                return SqlTokenType.Function;
-            }
+            //if (base.FunctionList.Contains(firstLetter))
+            //{
+            //    return SqlTokenType.Function;
+            //}
 
-            if (base.KeyWordList.Contains(firstLetter))
-            {
-                return SqlTokenType.Function;
-            }
+            //if (base.KeyWordList.Contains(firstLetter))
+            //{
+            //    return SqlTokenType.Function;
+            //}
 
             return SqlTokenType.Identifiers;
         }

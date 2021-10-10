@@ -1,4 +1,5 @@
-\DatabaseParser\bin\*
-\SqlParse\obj\*
-\SqlParse\obj\*
-\SqlParse\.vs
+/DatabaseParser/obj
+/DatabaseParser/bin
+/SqlParse/obj
+/SqlParse/bin
+/SqlParse/.vs
