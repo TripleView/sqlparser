@@ -18,9 +18,18 @@ namespace SqlParse
         private string leftQuote;
         private string rightQuote;
         /// <summary>
-        /// 切割单词的分隔符，主要是空格
+        /// 符号列表
         /// </summary>
-        public List<char> SeparatorList { get; set; } = new List<char>() { ' ',','};
+        public List<string> SymbolList { get; set; } = new List<string>() { " ", ",", ".", "@", ":", "=", ">", "<", "*", "`", "%", "\\", "(", ")", "[", "]", "-", "+" };
+        /// <summary>
+        /// 通用关键字列表
+        /// </summary>
+        public List<string> BaseKeyWordList { get; set; } = new List<string>() { "select","from","where","by","order","group","update","delete","insert","as" };
+        /// <summary>
+        /// 关键字列表
+        /// </summary>
+        /// <returns></returns>
+        public virtual List<string> KeyWordList() => BaseKeyWordList;
 
         public List<SqlToken> Parse(string sql)
         {
@@ -42,15 +51,15 @@ namespace SqlParse
 
                 var newChar = (char)content;
                 //如果是分隔符，则直接跳过
-                if (SeparatorList.Contains(newChar))
+                if (SymbolList.Contains(newChar.ToString()))
                 {
-                    var sqlTokenType = DetermineTokenType(text);
+                    var sqlTokenType = GetTokenType(text);
                     var token = new SqlToken(sqlTokenType, text, startPosition, i - 1);
                     startPosition = -1;
                     result.Add(token);
                     //添加空白
                     var separatorText = newChar.ToString();
-                    var separatorSqlTokenType = DetermineTokenType(separatorText);
+                    var separatorSqlTokenType = GetTokenType(separatorText);
                     var separatorToken = new SqlToken(separatorSqlTokenType, separatorText, i, i);
              
                     result.Add(separatorToken);
@@ -76,12 +85,17 @@ namespace SqlParse
         /// 判断token类型
         /// </summary>
         /// <returns></returns>
-        private  SqlTokenType DetermineTokenType(string text)
+        private  SqlTokenType GetTokenType(string text)
         {
-            //if (string.IsNullOrWhiteSpace(text))
-            //{
-            //    throw new Exception("sql为空");
-            //}
+            if (SymbolList.Contains(text))
+            {
+                return SqlTokenType.Symbol;
+            }
+
+            if (KeyWordList().Contains(text.ToLower()))
+            {
+                return SqlTokenType.KeyWord;
+            }
 
             //var firstLetter = text.Substring(0, 1);
             //if (firstLetter == parameterPrefix)
@@ -109,7 +123,7 @@ namespace SqlParse
             //    return SqlTokenType.Function;
             //}
 
-            return SqlTokenType.Identifiers;
+            return SqlTokenType.Identifier;
         }
     }
 }

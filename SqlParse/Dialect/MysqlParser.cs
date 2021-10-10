@@ -1,7 +1,11 @@
 ﻿namespace SqlParse.Dialect
 {
-    public class MysqlParser
+    public class MysqlParser:SqlParser
     {
-        
+        public MysqlParser() : base("@", "`", "`")
+        {
+
+        }
+
     }
 }

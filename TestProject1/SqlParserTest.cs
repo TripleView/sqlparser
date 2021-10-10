@@ -1,4 +1,5 @@
 ﻿using SqlParse;
+using SqlParse.Dialect;
 using Xunit;
 
 namespace TestProject1
@@ -8,11 +9,10 @@ namespace TestProject1
         [Fact]
         public void TestSelect()
         {
-            var sql = @"select * from equipment";
-            //sql = "12";
-            //sql = "select * from equipment e LEFT JOIN(SELECT * FROM ATL_EQUIPMENT ae) t ON e.EQUIPMENT =t.equipment";
+            var sql = @"SELECT DISTINCT `p0`.`Name` As `Key`, SUM(`p0`.`Age`) As `Count` FROM `Person` As `p0` GROUP BY `p0`.`Name` LIMIT @y0,@y1";
+        
 
-            var result = new SqlParser(DatabaseType.Oracle).Parse(sql);
+            var result = new MysqlParser().Parse(sql);
         }
     }
 }

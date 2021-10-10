@@ -12,23 +12,24 @@ namespace SqlParse
         /// <summary>
         /// 关键词，比如select，order by
         /// </summary>
-        KeyWord = 1,
-        
+        KeyWord ,
         /// <summary>
-        /// 运算符，如=,+等
+        /// 符号，比如空格，逗号等
         /// </summary>
-        Operator=3,
+        Symbol ,
+     
         /// <summary>
         /// 标识符，如表名,列名
         /// </summary>
-        Identifiers=4,
+        Identifier,
         /// <summary>
         /// 变量
         /// </summary>
-        Variable=5,
+        Variable,
         /// <summary>
         /// 函数
         /// </summary>
-        Function=6
+        Function,
+       
     }
 }
