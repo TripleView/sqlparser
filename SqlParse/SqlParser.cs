@@ -5,15 +5,22 @@ using System.Text;
 
 namespace SqlParse
 {
-    public class SqlParser : DatabaseAdapter.DatabaseAdapter
+    public class SqlParser 
     {
-        public SqlParser(DatabaseType databaseType) : base(databaseType)
+        public SqlParser(string parameterPrefix, string leftQuote, string rightQuote)
         {
+            this.parameterPrefix = parameterPrefix;
+            this.leftQuote = leftQuote;
+            this.rightQuote = rightQuote;
         }
+
+        private string parameterPrefix;
+        private string leftQuote;
+        private string rightQuote;
         /// <summary>
         /// 切割单词的分隔符，主要是空格
         /// </summary>
-        public List<char> SeparatorList { get; set; } = new List<char>() { ' ' };
+        public List<char> SeparatorList { get; set; } = new List<char>() { ' ',','};
 
         public List<SqlToken> Parse(string sql)
         {
@@ -77,7 +84,7 @@ namespace SqlParse
             }
 
             var firstLetter = text.Substring(0, 1);
-            if (firstLetter == base.ConvertParameterName)
+            if (firstLetter == parameterPrefix)
             {
                 return SqlTokenType.Variable;
             }

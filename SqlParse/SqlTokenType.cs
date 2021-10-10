@@ -10,19 +10,16 @@ namespace SqlParse
     public enum SqlTokenType
     {
         /// <summary>
-        /// 关键词
+        /// 关键词，比如select，order by
         /// </summary>
-        Keywork = 1,
-        /// <summary>
-        /// 特殊字符，比如".",",","(",")"
-        /// </summary>
-        SpecialCharacters = 2,
+        KeyWord = 1,
+        
         /// <summary>
         /// 运算符，如=,+等
         /// </summary>
         Operator=3,
         /// <summary>
-        /// 标识符，如表名
+        /// 标识符，如表名,列名
         /// </summary>
         Identifiers=4,
         /// <summary>

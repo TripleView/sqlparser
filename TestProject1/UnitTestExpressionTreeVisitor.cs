@@ -997,7 +997,7 @@ namespace TestProject1
             Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
             Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
         }
-
+        
         [Fact]
         public void TestMysqlSkipAndTake2()
         {
@@ -1035,11 +1035,66 @@ namespace TestProject1
         }
 
         [Fact]
+        public void TestMysqlSkipAndTake4()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.GroupBy(it => it.Name).Select(it => new { it.Key, Count = it.Sum(x => x.Age) }).Skip(1).Take(1).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT `p0`.`Name` As `Key`, SUM(`p0`.`Age`) As `Count` FROM `Person` As `p0` GROUP BY `p0`.`Name` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
+        public void TestMysqlSkipAndTake5()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.GroupBy(it => it.Name).Select(it => new { it.Key, Count = it.Sum(x => x.Age) }).Distinct().Skip(1).Take(1).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT `p0`.`Name` As `Key`, SUM(`p0`.`Age`) As `Count` FROM `Person` As `p0` GROUP BY `p0`.`Name` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
+        public void TestMysqlSkipAndTake6()
+        {
+            var personRepository = new MysqlPersonRepository();
+            var r1 = personRepository.GroupBy(it => it.Name).Select(it => new { it.Key, Count = it.Sum(x => x.Age) })
+                .Distinct().Skip(1).Take(1).ToDictionary(it => it.Key, it => it.Count);
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT DISTINCT `p0`.`Name` As `Key`, SUM(`p0`.`Age`) As `Count` FROM `Person` As `p0` GROUP BY `p0`.`Name` LIMIT @y0,@y1", r1MiddleResult.Sql);
+            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+        }
+
+        [Fact]
         public void TestMysqlEf()
         {
             var c = new MySqlDbContext();
             var d = c.person.FirstOrDefault();
-            var e = c.person.Take(5).ToList();
+            var e = c.person.GroupBy(it=>it.Name).Select(it=>new {it.Key,Count=it.Sum(x=>x.Age)}).Distinct().Skip(1).Take(5).ToList();
             //var d = c.person.OrderBy(it => new { it.Age, it.Name }).ToList();
             //.ToDictionary(g => g.Key, g => g.Count);
         }

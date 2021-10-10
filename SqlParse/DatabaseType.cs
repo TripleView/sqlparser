@@ -9,8 +9,8 @@ namespace SqlParse
     /// </summary>
     public enum DatabaseType
     {
-        MsSql=1,
-        Oracle=2,
-        Mysql=3
+        SqlServer = 1,
+        Oracle = 2,
+        Mysql = 3
     }
 }

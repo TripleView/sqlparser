@@ -1,27 +1,26 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj": {}
+    "D:\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj": {}
   },
   "projects": {
-    "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj": {
+    "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj",
+        "projectUniqueName": "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj",
         "projectName": "DatabaseParser",
-        "projectPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj",
-        "packagesPath": "C:\\Users\\HeZP\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\obj\\",
+        "projectPath": "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj",
+        "packagesPath": "C:\\Users\\hzp\\.nuget\\packages\\",
+        "outputPath": "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-          "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\"
+          "D:\\cache\\package\\NuGetPackages",
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "C:\\Users\\HeZP\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\hzp\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "netcoreapp3.1"
@@ -65,24 +64,83 @@
         }
       }
     },
-    "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj": {
+    "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj",
-        "projectName": "TestProject1",
-        "projectPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj",
-        "packagesPath": "C:\\Users\\HeZP\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\TestProject1\\obj\\",
+        "projectUniqueName": "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj",
+        "projectName": "SqlParse",
+        "projectPath": "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj",
+        "packagesPath": "C:\\Users\\hzp\\.nuget\\packages\\",
+        "outputPath": "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-          "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet\\"
+          "D:\\cache\\package\\NuGetPackages",
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "C:\\Users\\HeZP\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\hzp\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp3.1"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp3.1": {
+            "targetAlias": "netcoreapp3.1",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp3.1": {
+          "targetAlias": "netcoreapp3.1",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.401\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj",
+        "projectName": "TestProject1",
+        "projectPath": "D:\\code\\newSqlParser\\sqlparser\\TestProject1\\TestProject1.csproj",
+        "packagesPath": "C:\\Users\\hzp\\.nuget\\packages\\",
+        "outputPath": "D:\\code\\newSqlParser\\sqlparser\\TestProject1\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "D:\\cache\\package\\NuGetPackages",
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\hzp\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "netcoreapp3.1"
@@ -96,8 +154,11 @@
           "netcoreapp3.1": {
             "targetAlias": "netcoreapp3.1",
             "projectReferences": {
-              "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj": {
-                "projectPath": "C:\\Users\\HeZP\\Desktop\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj"
+              "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj": {
+                "projectPath": "D:\\code\\newSqlParser\\sqlparser\\DatabaseParser\\DatabaseParser.csproj"
+              },
+              "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj": {
+                "projectPath": "D:\\code\\newSqlParser\\sqlparser\\SqlParse\\SqlParse.csproj"
               }
             }
           }

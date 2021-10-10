@@ -13,6 +13,7 @@
           "Microsoft.Extensions.Logging.Debug": "3.1.19",
           "Microsoft.NET.Test.Sdk": "16.7.1",
           "MySql.EntityFrameworkCore": "3.1.14",
+          "SqlParse": "1.0.0",
           "coverlet.collector": "1.3.0",
           "xunit": "2.4.1",
           "xunit.runner.visualstudio": "2.4.3"
@@ -1825,6 +1826,11 @@
         "runtime": {
           "DatabaseParser.dll": {}
         }
+      },
+      "SqlParse/1.0.0": {
+        "runtime": {
+          "SqlParse.dll": {}
+        }
       }
     }
   },
@@ -2927,6 +2933,11 @@
       "hashPath": "xunit.runner.visualstudio.2.4.3.nupkg.sha512"
     },
     "DatabaseParser/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SqlParse/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
