@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using DatabaseParser.Base;
@@ -22,6 +23,8 @@ namespace DatabaseParser.ExpressionParser
         private readonly List<SqlParameter> sqlParameters = new List<SqlParameter>();
 
         private int parameterIndex = 0;
+        private int selectIndex = 0;
+        
         private string parameterPrefix;
         private string leftQuote;
         private string rightQuote;
@@ -37,8 +40,8 @@ namespace DatabaseParser.ExpressionParser
                 this.VisitColumn(column);
             }
             _sb.AppendFormat(" FROM {0}", BoxTableNameOrColumnName(table.Name));
-            if (!table.Alias.IsNullOrWhiteSpace())
-                _sb.AppendFormat(" As {0} ", BoxTableNameOrColumnName(table.Alias));
+            //if (!table.Alias.IsNullOrWhiteSpace())
+            //    _sb.AppendFormat(" As {0} ", BoxTableNameOrColumnName(table.Alias));
 
             return table;
         }
@@ -58,7 +61,43 @@ namespace DatabaseParser.ExpressionParser
             return leftQuote + tableNameOrColumnName + rightQuote;
         }
 
+        /// <summary>
+        /// 重命名select里的所有列的别名
+        /// </summary>
+        /// <param name="selectExpression"></param>
+        protected void RenameSelectExpressionInternalAlias(SelectExpression selectExpression)
+        {
+            var newAlias = this.NewAlias;
+            selectExpression.Columns.ForEach(it=>it.TableAlias=newAlias);
+            selectExpression.Alias = newAlias;
+            selectExpression.GroupBy.Select(it=>it.ColumnExpression).ToList().ForEach(it=>it.TableAlias=newAlias);
+            selectExpression.OrderBy.Select(it => it.ColumnExpression).ToList().ForEach(it => it.TableAlias = newAlias);
+            RenameWhereColumnsAlias(selectExpression.Where, newAlias);
+        }
 
+        private void RenameWhereColumnsAlias(WhereExpression whereExpression,string alias)
+        {
+            if (whereExpression == null)
+            {
+                return;
+            }
+
+            if (whereExpression.Left != null && whereExpression.Right != null)
+            {
+                this.RenameWhereColumnsAlias(whereExpression.Left,alias);
+             
+                this.RenameWhereColumnsAlias(whereExpression.Right, alias);
+            }
+
+            else if (whereExpression is WhereConditionExpression whereConditionExpression)
+            {
+                whereConditionExpression.ColumnExpression.TableAlias = alias;
+            }
+            else if (whereExpression is FunctionWhereConditionExpression functionWhereConditionExpression)
+            {
+                RenameWhereColumnsAlias(functionWhereConditionExpression.WhereExpression, alias);
+            }
+        }
         /// <summary>
         /// 获取函数别名，比如sqlserver就是LEN，mysql就是LENGTH
         /// </summary>
@@ -98,8 +137,6 @@ namespace DatabaseParser.ExpressionParser
             switch (queryExpression)
             {
                 case SelectExpression selectExpression: this.VisitSelect(selectExpression); break;
-                case TableExpression tableExpression: this.VisitTable(tableExpression); break;
-                    //case DbExpressionType.Join: this.VisitSource((JoinExpression)exp); break;
             }
 
             return queryExpression;
@@ -162,7 +199,7 @@ namespace DatabaseParser.ExpressionParser
             }
             else
             {
-                if (!columnExpression.TableAlias.IsNullOrWhiteSpace())
+                if (!columnExpression.TableAlias.IsNullOrWhiteSpace()&&columnExpression.ColumnName!= "*")
                 {
                     tempStringBuilder.AppendFormat("{0}.{1}", BoxTableNameOrColumnName(columnExpression.TableAlias), BoxTableNameOrColumnName(columnExpression.ColumnName));
                 }
@@ -225,10 +262,13 @@ namespace DatabaseParser.ExpressionParser
                 if (select.From is TableExpression table)
                 {
                     _sb.Append(BoxTableNameOrColumnName(table.Name));
-                    if (!table.Alias.IsNullOrWhiteSpace())
-                    {
-                        _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(table.Alias));
-                    }
+                    _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(select.Alias));
+                }
+                else if (select.From is SelectExpression subSelectExpression)
+                {
+                    _sb.Append("(");
+                    this.VisitSelect(subSelectExpression);
+                    _sb.Append(")");
                 }
 
             }
@@ -275,6 +315,8 @@ namespace DatabaseParser.ExpressionParser
 
         public override Expression VisitSelect(SelectExpression select)
         {
+            RenameSelectExpressionInternalAlias(select);
+
             if (select.HasPagination)
             {
                 HandlingPaging(select);

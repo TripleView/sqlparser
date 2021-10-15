@@ -10,25 +10,31 @@ namespace DatabaseParser.ExpressionParser
     public class SelectExpression : QueryExpression
     {
         public SelectExpression(Type type, string alias, List<ColumnExpression> columns, Expression from, WhereExpression where = null,
-            List<GroupByExpression> groupBy = null, List<OrderByExpression> orderBy = null, object translator = null)
+            List<GroupByExpression> groupBy = null, List<OrderByExpression> orderBy = null)
             : base((ExpressionType)DbExpressionType.Select, type)
         {
-            ElementType = type;
             Alias = alias;
             Columns = columns;
             From = from;
             Where = where;
             GroupBy = groupBy ?? new List<GroupByExpression>();
             OrderBy = orderBy ?? new List<OrderByExpression>();
-            Translator = translator;
         }
 
+        public SelectExpression(Type type, string alias, List<ColumnExpression> columns, Expression from,string columnsPrefix, int? skip = null, int? take = null, WhereExpression where = null,
+            List<GroupByExpression> groupBy = null, List<OrderByExpression> orderBy = null)
+            : this(type, alias, columns, from, where, groupBy, orderBy)
+        {
+            this.ColumnsPrefix = columnsPrefix;
+            this.Skip = skip;
+            this.Take = take;
+        }
         #region 属性
         /// <summary>
-        /// 列前缀，比如DISTINCT
+        /// 所有列的前缀，比如DISTINCT
         /// </summary>
         public string ColumnsPrefix { get; set; }
-      
+
         /// <summary>
         /// 跳过多少数据
         /// </summary>
@@ -58,6 +64,12 @@ namespace DatabaseParser.ExpressionParser
 
         #endregion
 
+        public SelectExpression DeepClone()
+        {
+            var result = new SelectExpression(this.Type, this.Alias, this.Columns, this.From,this.ColumnsPrefix, this.Skip, this.Take, this.Where, this.GroupBy,
+                this.OrderBy);
+            return result;
+        }
 
     }
 }

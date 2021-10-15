@@ -49,8 +49,6 @@ namespace DatabaseParser.ExpressionParser
         /// </summary>
         public string RightAlias { get { return Right.Alias; } }
 
-        public override DbExpressionType ExpressionType { get { return DbExpressionType.Join; } }
-
         #endregion
     }
 }

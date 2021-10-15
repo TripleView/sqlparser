@@ -19,7 +19,7 @@ namespace SqlParse
         /// <summary>
         /// 词类型
         /// </summary>
-        public SqlTokenType TokenType {  get; }
+        public SqlTokenType TokenType {  get; set; }
         /// <summary>
         /// 具体文本
         /// </summary>
@@ -36,5 +36,10 @@ namespace SqlParse
         /// 文本长度
         /// </summary>
         public int Length => EndPosition - StartPosition+1;
+
+        public override string ToString()
+        {
+            return $"值为{Text},开始位置{StartPosition},结束位置{EndPosition},长度{Length},类型{TokenType.ToString()}";
+        }
     }
 }

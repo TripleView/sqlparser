@@ -53,12 +53,12 @@ namespace DatabaseParser.ExpressionParser
         private string LastMethodName => lastMethodCalls.LastOrDefault();
         #region 表名生成管理
 
-        private int _tableIndex = 0;
+        private int _tableIndex = -1;
 
         /// <summary>
         /// 获取新的查询别名
         /// </summary>
-        public string NewAlias => "p" + _tableIndex;
+        public string NewAlias => "p" + ++_tableIndex;
 
         #endregion
 
@@ -69,10 +69,11 @@ namespace DatabaseParser.ExpressionParser
             switch ((DbExpressionType)exp.NodeType)
             {
                 case DbExpressionType.Select:
-                case DbExpressionType.Table:
                 case DbExpressionType.Join:
                 case DbExpressionType.Query:
                     return this.VisitQuery((QueryExpression)exp);
+                case DbExpressionType.Table:
+                    return this.VisitTable((TableExpression)exp);
                 case DbExpressionType.Column:
                     return this.VisitColumn((ColumnExpression)exp);
             }
@@ -85,6 +86,10 @@ namespace DatabaseParser.ExpressionParser
         {
             return queryExpression;
         }
+        public virtual Expression VisitTable(TableExpression tableExpression)
+        {
+            return tableExpression;
+        }
 
         public virtual Expression VisitWhere(WhereExpression whereExpression)
         {
@@ -93,11 +98,6 @@ namespace DatabaseParser.ExpressionParser
         public virtual Expression VisitColumn(ColumnExpression columnExpression)
         {
             return columnExpression;
-        }
-
-        public virtual Expression VisitTable(TableExpression tableExpression)
-        {
-            return tableExpression;
         }
 
         public virtual Expression VisitSelect(SelectExpression selectExpression)
@@ -567,6 +567,8 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
+                selectExpression = NestSelectExpression(selectExpression);
+
                 if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
                 {
                     selectExpression.Take = 1;
@@ -585,6 +587,20 @@ namespace DatabaseParser.ExpressionParser
             {
                 throw new NotSupportedException(nameof(firstOrDefaultCall));
             }
+        }
+
+        protected SelectExpression NestSelectExpression(SelectExpression selectExpression)
+        {
+            //如果是distinct，需要终结小查询，并作为子查询提供给下一个环节，比例原始数据为1,1,2，
+            //如果先分页，再distinct，结果可能是11，但如果先distinct再分页，结果可能是1,2
+            if (selectExpression.ColumnsPrefix == "DISTINCT")
+            {
+                var newSelectExpression = new SelectExpression(null, selectExpression.Alias, selectExpression.Columns,
+                    selectExpression);
+                selectExpression = newSelectExpression;
+            }
+
+            return selectExpression;
         }
 
         public virtual Expression VisitSkipTakeCall(MethodCallExpression skipTakExpression)
@@ -619,6 +635,8 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
+                selectExpression = NestSelectExpression(selectExpression);
+
                 if (methodName == nameof(Queryable.Skip))
                 {
                     selectExpression.Skip = count;
@@ -707,6 +725,8 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
+                selectExpression = NestSelectExpression(selectExpression);
+
                 if (bodyExpression is ColumnExpression columnExpression)
                 {
                     OrderByType orderByType;
@@ -746,21 +766,23 @@ namespace DatabaseParser.ExpressionParser
             {
                 if (bodyExpression is ColumnExpression columnExpression)
                 {
-                    var alias = table.Alias;
-                    var result = new SelectExpression(null, alias, new List<ColumnExpression>() { columnExpression }, table);
+                    
+                    var result = new SelectExpression(null, "", new List<ColumnExpression>() { columnExpression }, table);
 
                     return result;
                 }
                 else if (bodyExpression is ColumnsExpression columnsExpression)
                 {
-                    var alias = table.Alias;
-                    var result = new SelectExpression(null, alias, columnsExpression.ColumnExpressions, table);
+                   
+                    var result = new SelectExpression(null, "", columnsExpression.ColumnExpressions, table);
 
                     return result;
                 }
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
+                selectExpression = NestSelectExpression(selectExpression);
+
                 if (bodyExpression is ColumnExpression columnExpression)
                 {
                     selectExpression.Columns = new List<ColumnExpression>() { columnExpression };
@@ -802,6 +824,8 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
+                selectExpression = NestSelectExpression(selectExpression);
+
                 if (bodyExpression is ColumnExpression columnExpression)
                 {
                     var groupByExpression = new GroupByExpression(columnExpression);
@@ -868,13 +892,9 @@ namespace DatabaseParser.ExpressionParser
         {
             if (constant.Value is IQueryable queryable)
             {
-
-                var alias = "";
-                alias = this.NewAlias;
-
                 //生成TableExpression,并将其Columns属性缓存
 
-                var tableExpression = new TableExpression(queryable.ElementType, alias);
+                var tableExpression = new TableExpression(queryable.ElementType);
 
                 _lastColumns = tableExpression.Columns.ToDictionary(x => x.ColumnName);
 

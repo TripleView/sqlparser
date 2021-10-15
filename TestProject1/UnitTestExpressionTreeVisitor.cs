@@ -908,7 +908,7 @@ namespace TestProject1
 
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
-            Assert.Equal("SELECT [T].[Name], [T].[Age], [T].[HaveChildren] FROM (SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren],ROW_NUMBER() OVER( ORDER BY (SELECT 1)) AS [ROW]  FROM [Person] As [p0]) AS [T] WHERE T.[ROW]>@y0 AND T.[ROW]<=@y1", r1MiddleResult.Sql);
+            Assert.Equal("SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren] FROM (SELECT [p1].[Name], [p1].[Age], [p1].[HaveChildren],ROW_NUMBER() OVER( ORDER BY (SELECT 1)) AS [ROW] FROM [Person] As [p1]) AS [p0] WHERE [p0].[ROW]>@y0 AND [p0].[ROW]<=@y1", r1MiddleResult.Sql);
             Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
 
             Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
@@ -968,18 +968,42 @@ namespace TestProject1
         public void TestSkipAndTake5()
         {
             var personRepository = new PersonRepository();
-            var r1 = personRepository.Skip(1).Take(1).ToList();
+            var r1 = personRepository.Where(it => it.Name == "hzp").OrderBy(it => it.Age).Select(it => it.HaveChildren).Skip(1).Take(1).Distinct().ToList();
 
             var r1MiddleResult = personRepository.GetDbQueryDetail();
 
-            Assert.Equal("SELECT [T].[Name], [T].[Age], [T].[HaveChildren] FROM (SELECT [p0].[Name], [p0].[Age], [p0].[HaveChildren],ROW_NUMBER() OVER( ORDER BY (SELECT 1)) AS [ROW]  FROM [Person] As [p0]) AS [T] WHERE T.[ROW]>@y0 AND T.[ROW]<=@y1", r1MiddleResult.Sql);
-            Assert.Equal(2, r1MiddleResult.SqlParameters.Count);
+            Assert.Equal("SELECT [T].[HaveChildren] FROM (SELECT [p0].[Age], [p0].[HaveChildren],ROW_NUMBER() OVER( ORDER BY [p0].[Age]) AS [ROW]  FROM [Person] As [p0] WHERE  ([p0].[Name] = @y0 )) AS [T] WHERE T.[ROW]>@y1 AND T.[ROW]<=@y2", r1MiddleResult.Sql);
+            Assert.Equal(3, r1MiddleResult.SqlParameters.Count);
 
             Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
-            Assert.Equal(1, r1MiddleResult.SqlParameters[0].Value);
+            Assert.Equal("hzp", r1MiddleResult.SqlParameters[0].Value);
 
             Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
-            Assert.Equal(2, r1MiddleResult.SqlParameters[1].Value);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+
+            Assert.Equal("@y2", r1MiddleResult.SqlParameters[2].ParameterName);
+            Assert.Equal(2, r1MiddleResult.SqlParameters[2].Value);
+        }
+
+        [Fact]
+        public void TestSkipAndTake6()
+        {
+            var personRepository = new PersonRepository();
+            var r1 = personRepository.Where(it => it.Name == "hzp").OrderBy(it => it.Age).Distinct().Select(it => it.HaveChildren).Skip(1).Take(1).ToList();
+
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("SELECT [T].[HaveChildren] FROM (SELECT [p0].[Age], [p0].[HaveChildren],ROW_NUMBER() OVER( ORDER BY [p0].[Age]) AS [ROW]  FROM [Person] As [p0] WHERE  ([p0].[Name] = @y0 )) AS [T] WHERE T.[ROW]>@y1 AND T.[ROW]<=@y2", r1MiddleResult.Sql);
+            Assert.Equal(3, r1MiddleResult.SqlParameters.Count);
+
+            Assert.Equal("@y0", r1MiddleResult.SqlParameters[0].ParameterName);
+            Assert.Equal("hzp", r1MiddleResult.SqlParameters[0].Value);
+
+            Assert.Equal("@y1", r1MiddleResult.SqlParameters[1].ParameterName);
+            Assert.Equal(1, r1MiddleResult.SqlParameters[1].Value);
+
+            Assert.Equal("@y2", r1MiddleResult.SqlParameters[2].ParameterName);
+            Assert.Equal(2, r1MiddleResult.SqlParameters[2].Value);
         }
 
         [Fact]
@@ -1094,7 +1118,7 @@ namespace TestProject1
         {
             var c = new MySqlDbContext();
             var d = c.person.FirstOrDefault();
-            var e = c.person.GroupBy(it=>it.Name).Select(it=>new {it.Key,Count=it.Sum(x=>x.Age)}).Distinct().Skip(1).Take(5).ToList();
+            var e = c.person.Where(it => it.Name == "hzp").OrderBy(it => it.Age).Distinct().Select(it => it.Age).Skip(5).Take(5).ToList();
             //var d = c.person.OrderBy(it => new { it.Age, it.Name }).ToList();
             //.ToDictionary(g => g.Key, g => g.Count);
         }
@@ -1104,8 +1128,8 @@ namespace TestProject1
         {
             //
             var c = new SqlServerDbContext();
-            //var d = c.person.Where(it => it.Name == "hzp").OrderBy(it => it.Age).Select(it => it.HaveChildren).Skip(5).Take(5).ToList();
-            var e = c.person.Skip(5).Take(5).ToList();
+            var d = c.person.Where(it => it.Name == "hzp").OrderBy(it => it.Age).Distinct().Select(it => it.Age).Skip(5).Take(5).ToList();
+            //var e = c.person.Skip(5).Take(5).ToList();
             //var e1 = c.person.OrderBy(it=>it.Age).Take(5).ToList();
             //var e2 = c.person.Take(5).ToList();
             //var e = c.person.Distinct().FirstOrDefault();

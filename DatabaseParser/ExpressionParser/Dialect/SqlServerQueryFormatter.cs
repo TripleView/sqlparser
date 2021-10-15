@@ -18,6 +18,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
         /// <param name="select"></param>
         private void HasSkipPaging(SelectExpression select)
         {
+            var internalAlias = this.NewAlias;
             _sb.Append("SELECT ");
 
             if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
@@ -30,7 +31,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
             foreach (var column in select.Columns)
             {
                 var tempColumn = column.DeepClone();
-                tempColumn.TableAlias = "T";
+               
                 if (index++ > 0) _sb.Append(", ");
                 this.VisitColumn(tempColumn);
             }
@@ -48,6 +49,21 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 foreach (var column in except)
                 {
                     if (index++ > 0) _sb.Append(", ");
+                    column.TableAlias = internalAlias;
+                    
+                    this.VisitColumn(column);
+                }
+            }
+            else if (select.From is SelectExpression subSelectExpression && subSelectExpression.From is TableExpression fromTable2)
+            {
+                var except = fromTable2.Columns.Where(it =>
+                    subSelectExpression.Columns.Any(x => x.MemberInfo == it.MemberInfo) || subSelectExpression.OrderBy
+                        .Select(x => x.ColumnExpression).Any(x => x.MemberInfo == it.MemberInfo)).Distinct().ToList();
+
+                foreach (var column in except)
+                {
+                    if (index++ > 0) _sb.Append(", ");
+                    column.TableAlias = internalAlias;
                     this.VisitColumn(column);
                 }
             }
@@ -87,21 +103,28 @@ namespace DatabaseParser.ExpressionParser.Dialect
             var tableNameAlias = "";
             //加入row_number开窗函数
 
-            _sb.AppendFormat(",ROW_NUMBER() OVER({0}) AS [ROW] ", orderByString);
+            _sb.AppendFormat(",ROW_NUMBER() OVER({0}) AS [ROW] FROM ", orderByString);
 
             if (select.From != null)
             {
-                _sb.Append(" FROM ");
+                //_sb.Append(" FROM ");
                 //_sb.Append("(");
                 if (select.From is TableExpression table)
                 {
                     var tableName = BoxTableNameOrColumnName(table.Name);
                     _sb.Append(tableName);
-                    if (!table.Alias.IsNullOrWhiteSpace())
-                    {
-                        tableNameAlias = BoxTableNameOrColumnName(table.Alias);
-                        _sb.AppendFormat(" As {0}", tableNameAlias);
-                    }
+                    
+                    tableNameAlias = BoxTableNameOrColumnName(internalAlias);
+                    _sb.AppendFormat(" As {0}", tableNameAlias);
+                    
+                }
+                else if (select.From is SelectExpression subSelectExpression)
+                {
+                    
+                    _sb.Append("(");
+                    
+                    this.VisitSelect(subSelectExpression);
+                    _sb.Append(")");
                 }
 
             }
@@ -130,7 +153,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 }
             }
 
-            _sb.Append(") AS [T] WHERE T.[ROW]>");
+            _sb.AppendFormat(") AS {0} WHERE {0}.[ROW]>", BoxTableNameOrColumnName(select.Alias));
             var hasSkip = select.Skip.HasValue;
             if (hasSkip)
             {
@@ -141,7 +164,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 _sb.Append(BoxParameter(0));
             }
 
-            _sb.Append(" AND T.[ROW]<=");
+            _sb.AppendFormat(" AND {0}.[ROW]<=", BoxTableNameOrColumnName(select.Alias));
             var theLast = select.Skip.GetValueOrDefault(0) + select.Take.GetValueOrDefault(0);
             _sb.Append(BoxParameter(theLast));
         }
@@ -168,8 +191,6 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 this.VisitColumn(column);
             }
 
-            var alias = select.Alias;
-
             if (select.From != null)
             {
                 _sb.Append(" FROM ");
@@ -177,10 +198,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 if (select.From is TableExpression table)
                 {
                     _sb.Append(BoxTableNameOrColumnName(table.Name));
-                    if (!table.Alias.IsNullOrWhiteSpace())
-                    {
-                        _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(table.Alias));
-                    }
+                    _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(select.Alias));
                 }
 
             }

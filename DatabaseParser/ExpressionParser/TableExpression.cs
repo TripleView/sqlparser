@@ -13,19 +13,16 @@ namespace DatabaseParser.ExpressionParser
     /// <summary>
     /// 代表一张表的表达式
     /// </summary>
-    public class TableExpression : QueryExpression
+    public class TableExpression : DbBaseExpression
     {
         /// <summary>
         /// 代表一张表的表达式
         /// </summary>
         /// <param name="type">表内元素的类型(对应实体类)</param>
-        /// <param name="alias">表的别名</param>
         /// <param name="name">表的名称</param>
-        public TableExpression(Type type, string alias)
+        public TableExpression(Type type)
             : base((ExpressionType)DbExpressionType.Table, type)
         {
-            ElementType = type;
-            Alias = alias;
         }
 
         /// <summary>
@@ -36,20 +33,18 @@ namespace DatabaseParser.ExpressionParser
             get
             {
                 //查找tableAttribute特性,看下有没有自定义表明
-                var tableAttribute =ElementType.GetCustomAttribute<TableAttribute>();
+                var tableAttribute =Type.GetCustomAttribute<TableAttribute>();
                 //如果没有该特性，直接使用类名作为表名
-                var tableName = tableAttribute == null ? ElementType.Name : tableAttribute.Name;
+                var tableName = tableAttribute == null ? Type.Name : tableAttribute.Name;
                 return tableName;
             }
 
         }
 
-
-
         /// <summary>
         /// 表的列
         /// </summary>
-        public override List<ColumnExpression> Columns
+        public List<ColumnExpression> Columns
         {
             get
             {
@@ -66,7 +61,7 @@ namespace DatabaseParser.ExpressionParser
                     foreach (var propertyInfo in properties)
                     {
                         _columns.Add(new ColumnExpression(propertyInfo.PropertyType,
-                             Alias, propertyInfo, i++));
+                             "", propertyInfo, i++));
                     }
                     
                 }

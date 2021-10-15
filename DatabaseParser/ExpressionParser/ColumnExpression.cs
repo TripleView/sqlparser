@@ -9,48 +9,47 @@ namespace DatabaseParser.ExpressionParser
     /// <summary>
     /// 列表达式
     /// </summary>
-    public class ColumnExpression : Expression
+    public class ColumnExpression : DbBaseExpression
     {
 
-        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index) : base()
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index) : base((ExpressionType)DbExpressionType.Column, type)
         {
             TableAlias = tableAlias;
             Index = index;
-            this.Type = type;
-            this.NodeType = (ExpressionType)DbExpressionType.Column;
             this.MemberInfo = memberInfo;
         }
 
-
-        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value, string functionName) : this(type, TableAlias, memberInfo, index)
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index, object value, string functionName) : this(type, tableAlias, memberInfo, index)
         {
             this.Value = value;
             this.FunctionName = functionName;
         }
 
-        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, object value) : this(type, TableAlias, memberInfo, index)
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index, object value) : this(type, tableAlias, memberInfo, index)
         {
             this.Value = value;
         }
 
-        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, string columnAlias) : this(type, TableAlias, memberInfo, index)
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index, string columnAlias) : this(type, tableAlias, memberInfo, index)
         {
             this.ColumnAlias = columnAlias;
         }
 
-        public ColumnExpression(Type type, string TableAlias, MemberInfo memberInfo, int index, string columnAlias, string functionName) : this(type, TableAlias, memberInfo, index)
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index, string columnAlias, string functionName) : this(type, tableAlias, memberInfo, index)
         {
             this.ColumnAlias = columnAlias;
             this.FunctionName = functionName;
         }
 
-        public override ExpressionType NodeType { get; }
-        public override Type Type { get; }
+        public ColumnExpression(Type type, string tableAlias, MemberInfo memberInfo, int index, string columnAlias, string functionName,object value) : this(type, tableAlias, memberInfo, index, columnAlias, functionName)
+        {
+            this.ColumnAlias = columnAlias;
+            this.FunctionName = functionName;
+            this.Value = value;
+        }
 
-
-        public string NodeTypeName => ((DbExpressionType)NodeType).ToString();
         /// <summary>
-        /// 元信息
+        /// 方法元信息
         /// </summary>
         public MemberInfo MemberInfo { get; }
         /// <summary>
@@ -69,6 +68,10 @@ namespace DatabaseParser.ExpressionParser
         {
             get
             {
+                if (MemberInfo == null)
+                {
+                    return false;
+                }
                 var keyAttribute = MemberInfo.GetCustomAttribute<KeyAttribute>();
                 return keyAttribute != null;
             }
