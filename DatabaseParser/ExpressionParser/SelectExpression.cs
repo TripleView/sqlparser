@@ -21,6 +21,11 @@ namespace DatabaseParser.ExpressionParser
             OrderBy = orderBy ?? new List<OrderByExpression>();
         }
 
+        /// <summary>
+        /// 是否忽略order by语句
+        /// </summary>
+        public bool IsIgnoreOrderBy { get; set; } = false;
+
         public SelectExpression(Type type, string alias, List<ColumnExpression> columns, Expression from,string columnsPrefix, int? skip = null, int? take = null, WhereExpression where = null,
             List<GroupByExpression> groupBy = null, List<OrderByExpression> orderBy = null)
             : this(type, alias, columns, from, where, groupBy, orderBy)
@@ -47,6 +52,8 @@ namespace DatabaseParser.ExpressionParser
         /// 判断是否存在分页
         /// </summary>
         public bool HasPagination => Skip.HasValue || Take.HasValue;
+
+        public bool HasGroupBy => GroupBy.Count > 0;
         /// <summary>
         /// Where条件
         /// </summary>

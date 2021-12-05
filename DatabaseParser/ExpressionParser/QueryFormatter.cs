@@ -67,7 +67,7 @@ namespace DatabaseParser.ExpressionParser
         /// <param name="selectExpression"></param>
         protected void RenameSelectExpressionInternalAlias(SelectExpression selectExpression)
         {
-            var newAlias = this.NewAlias;
+            var newAlias = this.GetNewAlias();
             selectExpression.Columns.ForEach(it=>it.TableAlias=newAlias);
             selectExpression.Alias = newAlias;
             selectExpression.GroupBy.Select(it=>it.ColumnExpression).ToList().ForEach(it=>it.TableAlias=newAlias);
@@ -268,7 +268,7 @@ namespace DatabaseParser.ExpressionParser
                 {
                     _sb.Append("(");
                     this.VisitSelect(subSelectExpression);
-                    _sb.Append(")");
+                    _sb.AppendFormat(") As {0}", BoxTableNameOrColumnName(select.Alias));
                 }
 
             }
@@ -297,7 +297,7 @@ namespace DatabaseParser.ExpressionParser
                 }
             }
 
-            if (select.OrderBy.IsNotNullAndNotEmpty())
+            if (select.OrderBy.IsNotNullAndNotEmpty()&&!select.IsIgnoreOrderBy)
             {
                 _sb.Append(" ORDER BY ");
                 for (var i = 0; i < select.OrderBy.Count; i++)

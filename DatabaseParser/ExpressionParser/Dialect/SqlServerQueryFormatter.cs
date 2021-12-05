@@ -18,8 +18,10 @@ namespace DatabaseParser.ExpressionParser.Dialect
         /// <param name="select"></param>
         private void HasSkipPaging(SelectExpression select)
         {
-            var internalAlias = this.NewAlias;
+            var externalAlias = this.GetNewAlias();
+
             _sb.Append("SELECT ");
+            var isFromTable = false;
 
             if (!select.ColumnsPrefix.IsNullOrWhiteSpace())
             {
@@ -31,8 +33,9 @@ namespace DatabaseParser.ExpressionParser.Dialect
             foreach (var column in select.Columns)
             {
                 var tempColumn = column.DeepClone();
-               
+
                 if (index++ > 0) _sb.Append(", ");
+                tempColumn.TableAlias = externalAlias;
                 this.VisitColumn(tempColumn);
             }
 
@@ -42,6 +45,8 @@ namespace DatabaseParser.ExpressionParser.Dialect
             index = 0;
             if (select.From is TableExpression fromTable)
             {
+                isFromTable = true;
+
                 var except = fromTable.Columns.Where(it =>
                     select.Columns.Any(x => x.MemberInfo == it.MemberInfo) || select.OrderBy
                         .Select(x => x.ColumnExpression).Any(x => x.MemberInfo == it.MemberInfo)).Distinct().ToList();
@@ -49,8 +54,8 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 foreach (var column in except)
                 {
                     if (index++ > 0) _sb.Append(", ");
-                    column.TableAlias = internalAlias;
-                    
+                    column.TableAlias = select.Alias;
+
                     this.VisitColumn(column);
                 }
             }
@@ -63,7 +68,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 foreach (var column in except)
                 {
                     if (index++ > 0) _sb.Append(", ");
-                    column.TableAlias = internalAlias;
+                    column.TableAlias = select.Alias;
                     this.VisitColumn(column);
                 }
             }
@@ -83,6 +88,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 for (var i = 0; i < select.OrderBy.Count; i++)
                 {
                     var orderBy = select.OrderBy[i];
+
                     this.VisitColumn(orderBy.ColumnExpression);
                     _sb.Append(orderBy.OrderByType == OrderByType.Desc ? " DESC" : "");
                     if (i < select.OrderBy.Count - 1)
@@ -113,18 +119,20 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 {
                     var tableName = BoxTableNameOrColumnName(table.Name);
                     _sb.Append(tableName);
-                    
-                    tableNameAlias = BoxTableNameOrColumnName(internalAlias);
+
+                    tableNameAlias = BoxTableNameOrColumnName(select.Alias);
                     _sb.AppendFormat(" As {0}", tableNameAlias);
-                    
+
                 }
                 else if (select.From is SelectExpression subSelectExpression)
                 {
-                    
+                    subSelectExpression.IsIgnoreOrderBy = true;
+                    //this.RenameSelectExpressionInternalAlias(subSelectExpression);
+                    tableNameAlias = BoxTableNameOrColumnName(select.Alias);
                     _sb.Append("(");
-                    
                     this.VisitSelect(subSelectExpression);
-                    _sb.Append(")");
+                    _sb.AppendFormat(") As {0}", tableNameAlias);
+
                 }
 
             }
@@ -153,7 +161,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 }
             }
 
-            _sb.AppendFormat(") AS {0} WHERE {0}.[ROW]>", BoxTableNameOrColumnName(select.Alias));
+            _sb.AppendFormat(") AS {0} WHERE {0}.[ROW]>", BoxTableNameOrColumnName(externalAlias));
             var hasSkip = select.Skip.HasValue;
             if (hasSkip)
             {
@@ -164,7 +172,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 _sb.Append(BoxParameter(0));
             }
 
-            _sb.AppendFormat(" AND {0}.[ROW]<=", BoxTableNameOrColumnName(select.Alias));
+            _sb.AppendFormat(" AND {0}.[ROW]<=", BoxTableNameOrColumnName(externalAlias));
             var theLast = select.Skip.GetValueOrDefault(0) + select.Take.GetValueOrDefault(0);
             _sb.Append(BoxParameter(theLast));
         }
@@ -197,8 +205,22 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 //_sb.Append("(");
                 if (select.From is TableExpression table)
                 {
-                    _sb.Append(BoxTableNameOrColumnName(table.Name));
-                    _sb.AppendFormat(" As {0}", BoxTableNameOrColumnName(select.Alias));
+                    var tableName = BoxTableNameOrColumnName(table.Name);
+                    _sb.Append(tableName);
+
+                    var tableNameAlias = BoxTableNameOrColumnName(select.Alias);
+                    _sb.AppendFormat(" As {0}", tableNameAlias);
+
+                }
+                else if (select.From is SelectExpression subSelectExpression)
+                {
+                    subSelectExpression.IsIgnoreOrderBy = true;
+                    _sb.Append("(");
+
+                    this.VisitSelect(subSelectExpression);
+                    _sb.Append(")");
+                    var tableNameAlias = BoxTableNameOrColumnName(select.Alias);
+                    _sb.AppendFormat(" As {0}", tableNameAlias);
                 }
 
             }
@@ -227,7 +249,7 @@ namespace DatabaseParser.ExpressionParser.Dialect
                 }
             }
 
-            if (select.OrderBy.IsNotNullAndNotEmpty())
+            if (select.OrderBy.IsNotNullAndNotEmpty() && !select.IsIgnoreOrderBy)
             {
                 _sb.Append(" ORDER BY ");
                 for (var i = 0; i < select.OrderBy.Count; i++)

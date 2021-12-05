@@ -58,7 +58,11 @@ namespace DatabaseParser.ExpressionParser
         /// <summary>
         /// 获取新的查询别名
         /// </summary>
-        public string NewAlias => "p" + ++_tableIndex;
+        public string GetNewAlias()
+        {
+            _tableIndex++;
+            return "p" + _tableIndex;
+        }
 
         #endregion
 
@@ -567,7 +571,11 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
-                selectExpression = NestSelectExpression(selectExpression);
+                if (!selectExpression.HasGroupBy)
+                {
+                    selectExpression = NestSelectExpression(selectExpression);
+                }
+                
 
                 if (methodName == nameof(Queryable.FirstOrDefault) || methodName == nameof(Queryable.First))
                 {
@@ -635,8 +643,11 @@ namespace DatabaseParser.ExpressionParser
             }
             else if (sourceExpression is SelectExpression selectExpression)
             {
-                selectExpression = NestSelectExpression(selectExpression);
-
+                if (!selectExpression.HasGroupBy)
+                {
+                    selectExpression = NestSelectExpression(selectExpression);
+                }
+                
                 if (methodName == nameof(Queryable.Skip))
                 {
                     selectExpression.Skip = count;
@@ -970,7 +981,7 @@ namespace DatabaseParser.ExpressionParser
                     var propertyInfo = memberExpression.Member;
                     var columnName = DbQueryUtil.GetColumnName(propertyInfo);
 
-                    var alias = this.NewAlias;
+                    var alias = this.GetNewAlias();
                     var columnExpression = new ColumnExpression(propertyInfo.DeclaringType, alias, propertyInfo, 0);
 
                     return columnExpression;

@@ -44,7 +44,7 @@ namespace DatabaseParser.ExpressionParser
             return null;
         }
 
-        [DebuggerStepThrough]
+        
         public TResult Execute<TResult>(Expression expression)
         {
             //这一步将expression转化成我们自己的expression
