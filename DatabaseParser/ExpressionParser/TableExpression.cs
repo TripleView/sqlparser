@@ -38,7 +38,6 @@ namespace DatabaseParser.ExpressionParser
                 var tableName = tableAttribute == null ? Type.Name : tableAttribute.Name;
                 return tableName;
             }
-
         }
 
         /// <summary>
@@ -55,8 +54,6 @@ namespace DatabaseParser.ExpressionParser
                  
                     //排除掉不映射的列
                     var properties = Type.GetProperties().Where(it => !it.GetCustomAttributes().OfType<NotMappedAttribute>().Any()).ToList();
-
-                    var obj = Expression.Constant(Activator.CreateInstance(Type));
 
                     foreach (var propertyInfo in properties)
                     {

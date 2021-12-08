@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Debug;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using Microsoft.EntityFrameworkCore.Query;
 using Xunit;
@@ -15,10 +17,31 @@ namespace TestProject1
     public class Person
     {
         public string Name { get; set; }
+        [Key]
         public int Age { get; set; }
         public bool HaveChildren { get; set; }
     }
 
+    public class Employee
+    {
+        [Key]
+        public int Id { set; get; }
+        public string Name { get; set; }
+        public int Age { get; set; }
+        public bool HaveChildren { get; set; }
+    }
+
+    [Table("Hr2")]
+    public class Hr
+    {
+        [Key]
+        [Column("hrEmployeeNo")]
+        public string EmployeNo { set; get; }
+        [Key]
+        public string Name { get; set; }
+        public int Age { get; set; }
+        public bool HaveChildren { get; set; }
+    }
     public class Pet
     {
         public string Name { get; set; }
@@ -30,6 +53,26 @@ namespace TestProject1
     {
 
     }
+
+
+    
+
+    public class EmployeeRepository : BaseRepository<Employee>
+    {
+        public EmployeeRepository() : base(DatabaseType.SqlServer)
+        {
+
+        }
+    }
+
+    public class HrRepository : BaseRepository<Hr>
+    {
+        public HrRepository() : base(DatabaseType.SqlServer)
+        {
+
+        }
+    }
+
     public class PersonRepository : BaseRepository<Person>, IPersonRepository
     {
         public PersonRepository() : base(DatabaseType.SqlServer)
@@ -1136,6 +1179,50 @@ namespace TestProject1
             //var d = c.person.OrderBy(it => new { it.Age, it.Name }).ToList();
             //.ToDictionary(g => g.Key, g => g.Count);
         }
+
+        [Fact]
+        public void TestDelete()
+        {
+            var personRepository = new PersonRepository();
+            var persion = new Person() { Age = 5, HaveChildren = false, Name = "何泽平" };
+            personRepository.Delete(persion);
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("delete from [Person] where [Name]=@Name,[Age]=@Age,[HaveChildren]=@HaveChildren", r1MiddleResult.Sql);
+        }
+
+        [Fact]
+        public void TestUpdate()
+        {
+            var employeeRepository = new EmployeeRepository();
+            var persion = new Employee() { Age = 5, HaveChildren = false, Name = "何泽平" };
+            employeeRepository.Update(persion);
+            var r1MiddleResult = employeeRepository.GetDbQueryDetail();
+
+            Assert.Equal("update [Employee] set [Name]=@Name,[Age]=@Age,[HaveChildren]=@HaveChildren where [Id]=@Id", r1MiddleResult.Sql);
+        }
+
+        [Fact]
+        public void TestUpdate2()
+        {
+            var hrRepository = new HrRepository();
+            var persion = new Hr() { Age = 5, HaveChildren = false, Name = "何泽平",EmployeNo = "666"};
+            hrRepository.Update(persion);
+            var r1MiddleResult = hrRepository.GetDbQueryDetail();
+
+            Assert.Equal("update [Hr2] set [Age]=@Age,[HaveChildren]=@HaveChildren where [hrEmployeeNo]=@EmployeNo and [Name]=@Name", r1MiddleResult.Sql);
+        }
+
+        [Fact]
+        public void TestInsert()
+        {
+            var personRepository = new PersonRepository();
+            var persion = new Person() { Age = 5, HaveChildren = false, Name = "何泽平" };
+            personRepository.Insert(persion);
+            var r1MiddleResult = personRepository.GetDbQueryDetail();
+
+            Assert.Equal("insert into [Person] ([Name],[Age],[HaveChildren]) values (@Name,@Age,@HaveChildren)", r1MiddleResult.Sql);
+        }
     }
 
     public class MySqlDbContext : DbContext
@@ -1165,8 +1252,8 @@ namespace TestProject1
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseLoggerFactory(LoggerFactory);
-            optionsBuilder.UseSqlServer(@"server=LAPTOP-S1BRVUT1\SQLEXPRESS;User ID=SA;Password=Aa123456;database=master;");
-            //optionsBuilder.UseSqlServer("server=172.16.189.245;User ID=SA;Password=Aa123456;database=Test;");
+            //optionsBuilder.UseSqlServer(@"server=LAPTOP-S1BRVUT1\SQLEXPRESS;User ID=SA;Password=Aa123456;database=master;");
+            optionsBuilder.UseSqlServer("server=172.16.189.245;User ID=SA;Password=Aa123456;database=Test;");
             optionsBuilder.ReplaceService<IQueryTranslationPostprocessorFactory, SqlServer2008QueryTranslationPostprocessorFactory>();
             base.OnConfiguring(optionsBuilder);
         }

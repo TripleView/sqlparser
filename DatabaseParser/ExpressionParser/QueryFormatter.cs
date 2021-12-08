@@ -8,7 +8,7 @@ using DatabaseParser.Util;
 
 namespace DatabaseParser.ExpressionParser
 {
-    public class QueryFormatter : DbExpressionVisitor
+    public class QueryFormatter : DbExpressionVisitor, IDbExecute
     {
 
         public QueryFormatter(string parameterPrefix, string leftQuote, string rightQuote)
@@ -364,6 +364,91 @@ namespace DatabaseParser.ExpressionParser
 
 
             return whereExpression;
+        }
+
+        private TableExpression getTableExpression(Type type)
+        {
+            return new TableExpression(type);
+        }
+
+        public virtual void Insert<T>(T insertEntity)
+        {
+            var table = this.getTableExpression(typeof(T));
+            var tableName = BoxTableNameOrColumnName(table.Name);
+
+            var parameterNameList = new List<string>();
+            var columnNameList = new List<string>();
+
+            foreach (var column in table.Columns)
+            {
+                var columnName = BoxTableNameOrColumnName(column.ColumnName);
+                columnNameList.Add(columnName);
+                var parameterName = this.parameterPrefix + column.MemberInfo.Name;
+                parameterNameList.Add(parameterName);
+            }
+
+            _sb.Append($"insert into {tableName} ({string.Join(",",columnNameList)}) values ({string.Join(",",parameterNameList)})");
+            
+        }
+
+        public void Update<T>(T updateEntity)
+        {
+            var table = this.getTableExpression(typeof(T));
+            var tableName = BoxTableNameOrColumnName(table.Name);
+
+            var columnNameList = new List<string>();
+            var keyColumnNameList = new List<string>();
+
+            var columns = table.Columns.Where(it => !it.IsKey).ToList();
+
+            var keyColumnExpression = table.Columns.Where(it => it.IsKey).ToList();
+
+            if (!keyColumnExpression.Any())
+            {
+                throw new Exception("请设置主键");
+            }
+
+            var middleList = new List<string>();
+            foreach (var column in columns)
+            {
+                var columnName = BoxTableNameOrColumnName(column.ColumnName);
+                columnNameList.Add(columnName);
+                var parameterName = this.parameterPrefix + column.MemberInfo.Name;
+                middleList.Add(columnName + "="+ parameterName);
+            }
+
+            var keyList = new List<string>();
+            foreach (var column in keyColumnExpression)
+            {
+                var columnName = BoxTableNameOrColumnName(column.ColumnName);
+                keyColumnNameList.Add(columnName);
+                var parameterName = this.parameterPrefix + column.MemberInfo.Name;
+                keyList.Add(columnName + "=" + parameterName);
+            }
+
+            _sb.Append($"update {tableName} set {string.Join(",",middleList)} where {string.Join(" and ", keyList)}");
+
+        }
+
+        public void Delete<T>(T deleteEntity)
+        {
+            var table = this.getTableExpression(typeof(T));
+            var tableName = BoxTableNameOrColumnName(table.Name);
+
+
+            var columnNameList = new List<string>();
+
+            var middleList = new List<string>();
+            foreach (var column in table.Columns)
+            {
+                var columnName = BoxTableNameOrColumnName(column.ColumnName);
+                columnNameList.Add(columnName);
+                var parameterName = this.parameterPrefix + column.MemberInfo.Name;
+                middleList.Add(columnName + "=" + parameterName);
+            }
+
+            _sb.Append($"delete from {tableName} where {string.Join(",", middleList)}");
+
         }
     }
 }

@@ -10,7 +10,7 @@ namespace DatabaseParser.ExpressionParser
 {
     public class DbQueryProvider : IQueryProvider
     {
-        private QueryFormatter queryFormatter;
+        public QueryFormatter queryFormatter;
         public DbQueryProvider(DatabaseType databaseType)
         {
             switch (databaseType)

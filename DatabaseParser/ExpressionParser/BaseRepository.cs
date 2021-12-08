@@ -32,7 +32,6 @@ namespace DatabaseParser.ExpressionParser
 
         public IQueryProvider Provider { get; }
 
-        
         public IEnumerator<T> GetEnumerator()
         {
             var result = Provider.Execute<List<T>>(Expression);
@@ -58,6 +57,32 @@ namespace DatabaseParser.ExpressionParser
 
             return null;
         }
+
+        public void Insert(T insertEntity)
+        {
+            if (Provider is DbQueryProvider dbQueryProvider)
+            {
+                dbQueryProvider.queryFormatter.Insert(insertEntity);;
+            }
+        }
+
+        public void Update(T updateEntity)
+        {
+            if (Provider is DbQueryProvider dbQueryProvider)
+            {
+                dbQueryProvider.queryFormatter.Update(updateEntity); ;
+            }
+        }
+
+        public void Delete(T deleteEntity)
+        {
+            if (Provider is DbQueryProvider dbQueryProvider)
+            {
+                dbQueryProvider.queryFormatter.Delete(deleteEntity);
+            }
+        }
+
+       
     }
 
 }
